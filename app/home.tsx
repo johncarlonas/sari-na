@@ -258,7 +258,7 @@ export default function Index() {
               }
             }}
           >
-            <Ionicons name={isSearchFocused ? 'search' : 'locate'} size={35} color="#002A7A" />
+            <Ionicons name={isSearchFocused ? 'search' : 'locate'} size={30} color="#002A7A" />
           </Pressable>
         </View>
 

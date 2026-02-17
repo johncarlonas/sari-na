@@ -19,7 +19,7 @@ export default function Navbar() {
             style={[styles.sideButton, isProfile ? {} : { opacity: 0 }]}
             pointerEvents={isProfile ? 'auto' : 'none'}
           >
-            <Ionicons name="chevron-back" size={26} color="#fff" />
+            <Ionicons name="chevron-back" size={32} color="#fff" />
           </Pressable>
         </View>
 
