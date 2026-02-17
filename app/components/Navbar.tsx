@@ -2,39 +2,58 @@ import React from 'react';
 import { View, Pressable, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 
-export default function Navbar() {
+export default function Navbar({ screen }: { screen?: 'home' | 'profile' }) {
   const router = useRouter();
+  const navigation = useNavigation();
   const segments = useSegments();
-  const isProfile = segments.length && segments[segments.length - 1] === 'profile';
+  // determine which screen this Navbar instance should represent. If caller passes `screen`, respect it;
+  // otherwise fall back to the current route segments.
+  const isProfileScreen = screen === 'profile' || (!screen && segments.length && segments[segments.length - 1] === 'profile');
+  const canGoBack = typeof navigation?.canGoBack === 'function' ? navigation.canGoBack() : false;
+  const showBack = isProfileScreen && canGoBack; // only show back when Navbar is for the profile screen and there is navigation history
 
   return (
     <>
       <StatusBar style="light" backgroundColor="#002A7A" />
       <View style={styles.navbar} pointerEvents="box-none">
+        {/* LEFT SLOT */}
         <View style={styles.sideSlot}>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.sideButton, isProfile ? {} : { opacity: 0 }]}
-            pointerEvents={isProfile ? 'auto' : 'none'}
-          >
-            <Ionicons name="chevron-back" size={32} color="#fff" />
-          </Pressable>
+          {showBack ? (
+            <Pressable
+             
+                // avoid calling `navigation.goBack()` due to known react-native-screens goBack bug
+                // use replace to return to home without popping native fragments
+                onPress={() => router.push('/user/home')}
+                
+              style={styles.sideButton}
+            >
+              <Ionicons name="chevron-back" size={26} color="#fff" />
+            </Pressable>
+          ) : (
+            <View style={styles.sideContainer} />
+          )}
         </View>
 
+        {/* CENTER */}
         <View style={styles.centerSlot}>
           <Image source={require('../../assets/images/sarina_logo.png')} style={styles.navbarLogo} resizeMode="contain" />
         </View>
 
+        {/* RIGHT SLOT */}
         <View style={styles.sideSlot}>
-          <Pressable
-            onPress={() => router.push('/user/profile')}
-            style={[styles.profileButton, isProfile ? { opacity: 0 } : {}]}
-            pointerEvents={isProfile ? 'none' : 'auto'}
-          >
-            <Ionicons name="person-circle" size={32} color="#fff" />
-          </Pressable>
+          {!isProfileScreen ? (
+            <Pressable
+              onPress={() => router.push('/user/profile')}
+              style={styles.profileButton}
+            >
+              <Ionicons name="person-circle" size={32} color="#fff" />
+            </Pressable>
+          ) : (
+            <View style={styles.sideContainer} />
+          )}
         </View>
       </View>
     </>
@@ -55,11 +74,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 30 : 30,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
-    elevation: 6,
   },
-  sideSlot: { width: 30, alignItems: 'center', justifyContent: 'center' },
+  sideSlot: { width: 48, alignItems: 'center', justifyContent: 'center' },
   centerSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   navbarLogo: { width: 150, height: 48 },
   sideButton: {
@@ -68,11 +84,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sideContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#002A7A',
+  },
   profileButton: {
     width: 55,
     height: 55,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
 });

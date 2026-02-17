@@ -4,9 +4,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <Stack>
-        <Stack.Screen name="home" options={{headerShown: false}} />
-        <Stack.Screen name="user/profile" options={{headerShown: false}} />
+      <Stack 
+        screenOptions={{ 
+          headerShown: false, 
+          animation: 'slide_from_right',
+          animationDuration: 300,
+          contentStyle: { backgroundColor: '#000' },
+        }}
+      >
+        <Stack.Screen name="user/home" options={{ animation: 'slide_from_left' }} />
+        <Stack.Screen name="user/profile" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </SafeAreaProvider>
   );
