@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   Keyboard,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import Navbar from './components/Navbar';
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -63,11 +63,11 @@ export default function Index() {
         touchZoom: true
       });
 
-      // start centered on campus (default) — do NOT auto-restore previous user pans on reload
+      // start centered on campus (default) — zoom to campus center (match 'recenter')
       try {
-        map.fitBounds([southWest, northEast]);
+        map.setView([lat, lng], 18);
       } catch (e) {
-        map.setView([lat, lng], 16);
+        map.setView([lat, lng], 18);
       }
 
       // notify RN that map initialized
@@ -81,14 +81,28 @@ export default function Index() {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
+      // helper: set map view so the target latlng appears offset from center (pixels)
+      function setViewWithOffset(latv, lngv, zoomLevel) {
+        try {
+          const markerOffset = L.point(0, -120); // x: 0 (center horizontally), y: move marker up by 120px
+          const targetPoint = map.latLngToContainerPoint([latv, lngv]);
+          const centerPoint = L.point(targetPoint.x - markerOffset.x, targetPoint.y - markerOffset.y);
+          const centerLatLng = map.containerPointToLatLng(centerPoint);
+          map.setView(centerLatLng, zoomLevel || map.getZoom(), { animate: true });
+        } catch (e) {}
+      }
+
       // expose postMessage handler so RN can command the map (recenter / landscape)
       function handleRNMessage(raw) {
         let msg = null;
         try { msg = JSON.parse(raw && raw.data ? raw.data : raw); } catch (e) { return; }
         if (!msg || !msg.type) return;
         if (msg.type === 'recenter') {
-          // center on user (campus center) and zoom in for a close view
-          try { map.setView([lat, lng], 18, { animate: true }); } catch (e) {}
+          // center on user (campus center) with offset so marker sits above the sheet
+          try { setViewWithOffset(lat, lng, 18); } catch (e) {}
+        }
+        if (msg.type === 'goto' && typeof msg.lat === 'number' && typeof msg.lng === 'number') {
+          try { setViewWithOffset(msg.lat, msg.lng, 18); } catch (e) {}
         }
         if (msg.type === 'landscape') {
           const on = !!msg.on;
@@ -97,7 +111,7 @@ export default function Index() {
             const offset = (northEast[1] - southWest[1]) * 0.18;
             try { map.setView([lat, lng + offset], Math.max(map.getZoom() - 1, 15)); } catch (e) {}
           } else {
-            try { map.setView([lat, lng], 16); } catch (e) {}
+            try { setViewWithOffset(lat, lng, 16); } catch (e) {}
           }
         }
       }
@@ -115,15 +129,28 @@ export default function Index() {
 
       // sample campus markers (replace coordinates with exact campus coords if you have them)
       const spots = [
-        { lat: lat + 0.0009, lng: lng - 0.0009, title: 'College of Computer Studies' },
-        { lat: lat - 0.0008, lng: lng + 0.0010, title: 'School Canteen' }
+        { lat: 13.406402, lng: 123.375668, title: 'CSPC Auditorium' },
+        // { lat: 13.405569, lng: 123.374683, title: 'Academic Building 1' },
+        // { lat: 13.405508, lng: 123.375034, title: 'Graduate School Building' },
+        // { lat: 13.405485, lng: 123.375518, title: 'Laboratory Shop Building' },
+        // { lat: 13.405643, lng: 123.374459, title: 'CSPC Chapel' },
+        // { lat: 13.405917, lng: 123.375264, title: 'Gymnasium' },
+        // { lat: 13.405671, lng: 123.373563, title: 'Nabua Fire Station' },
+        { lat: 13.405669, lng: 123.377169, title: 'CCS (College of Computer Studies)' },
+        // { lat: 13.4059, lng: 123.377112, title: 'CAS' },
+        // { lat: 13.406001, lng: 123.376567, title: 'CEA' },
+        // { lat: 13.406365, lng: 123.376218, title: 'CTHBM' },
+        // { lat: 13.406159, lng: 123.377347, title: 'CHS' },
+        // { lat: 13.405313, lng: 123.377516, title: 'Academic Building VI' },
+        // { lat: 13.40551, lng: 123.374874, title: 'Technohub Building' },
+        // { lat: 13.405479, lng: 123.375275, title: 'Restroom Male' }
       ];
 
       const spotIcon = L.divIcon({
         className: '',
-        html: '<div style="width:28px;height:28px;border-radius:8px;background:#fff;color:#0b2;text-align:center;line-height:28px;font-weight:700;box-shadow:0 4px 8px rgba(0,0,0,0.25)">B</div>',
-        iconSize: [28,28],
-        iconAnchor: [14,14]
+        html: '<svg width="28" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C7.03 0 3 4.03 3 9c0 7.5 9 20 9 20s9-12.5 9-20c0-4.97-4.03-9-9-9zm0 13a4 4 0 110-8 4 4 0 010 8z" fill="#002A7A" stroke="#ffffff" stroke-width="0.5"/></svg>',
+        iconSize: [18,26],
+        iconAnchor: [14,36]
       });
 
       spots.forEach(s => {
@@ -147,16 +174,29 @@ export default function Index() {
   const COLLAPSED_VISIBLE = 130; 
   const SHEET_EXPANDED = 0; 
   const SHEET_COLLAPSED = Math.max(0, SHEET_MAX_HEIGHT - COLLAPSED_VISIBLE); 
-  const sheetAnim = useRef(new Animated.Value(SHEET_COLLAPSED)).current; 
-  const sheetOffset = useRef(SHEET_COLLAPSED);
+  const sheetAnim = useRef(new Animated.Value(SHEET_EXPANDED)).current; 
+  const sheetOffset = useRef(SHEET_EXPANDED);
   const webViewSource = useMemo(() => ({ html: MAP_HTML }), [MAP_HTML]);
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   const savedPlaces = [
-    { id: 'ccs', title: 'College of Computer Studies', subtitle: 'Academic Building IV' },
-    { id: 'canteen', title: 'School Canteen', subtitle: 'Building __' },
+    { id: 'auditorium', title: 'CSPC Auditorium', subtitle: 'Auditorium', coords: [13.406402, 123.375668] },
+    // { id: 'ab1', title: 'Academic Building 1', subtitle: 'Academic Building 1', coords: [13.405569, 123.374683] },
+    // { id: 'grad_school', title: 'Graduate School Building', subtitle: 'Graduate School', coords: [13.405508, 123.375034] },
+    // { id: 'lab_shop', title: 'Laboratory Shop Building', subtitle: 'Laboratory Shop', coords: [13.405485, 123.375518] },
+    // { id: 'chapel', title: 'CSPC Chapel', subtitle: 'Chapel', coords: [13.405643, 123.374459] },
+    // { id: 'gym', title: 'Gymnasium', subtitle: 'Gymnasium', coords: [13.405917, 123.375264] },
+    // { id: 'fire_station', title: 'Nabua Fire Station', subtitle: 'Nearby Landmark', coords: [13.405671, 123.373563] },
+    { id: 'ccs', title: 'College of Computer Studies', subtitle: 'Academic Building IV', coords: [13.405669, 123.377169] },
+    // { id: 'cas', title: 'CAS', subtitle: 'College of Arts & Sciences', coords: [13.4059, 123.377112] },
+    // { id: 'cea', title: 'CEA', subtitle: 'College of Education & Arts', coords: [13.406001, 123.376567] },
+    // { id: 'cthbm', title: 'CTHBM', subtitle: 'CTHBM', coords: [13.406365, 123.376218] },
+    // { id: 'chs', title: 'CHS', subtitle: 'College of Health Sciences', coords: [13.406159, 123.377347] },
+    // { id: 'ab6', title: 'Academic Building VI', subtitle: 'Academic Building VI', coords: [13.405313, 123.377516] },
+    // { id: 'technohub', title: 'Technohub Building', subtitle: 'Technohub', coords: [13.40551, 123.374874] },
+    // { id: 'restroom_m', title: 'Restroom Male', subtitle: 'Restroom', coords: [13.405479, 123.375275] },
   ];
 
   const filteredPlaces = savedPlaces.filter((p) => p.title.toLowerCase().includes(searchText.toLowerCase()));
@@ -265,7 +305,13 @@ export default function Index() {
         <Text style={styles.sectionTitle}>Saved Places</Text>
 
         {filteredPlaces.map((p) => (
-          <View key={p.id} style={styles.placeCard}>
+          <Pressable
+            key={p.id}
+            style={styles.placeCard}
+            onPress={() => {
+              try { webviewRef.current?.postMessage(JSON.stringify({ type: 'goto', lat: p.coords[0], lng: p.coords[1] })); } catch (e) {}
+            }}
+          >
             <View style={styles.placeIconBg}>
               <Ionicons name="business" size={23} color="#002A7A" />
             </View>
@@ -276,7 +322,7 @@ export default function Index() {
             <View style={styles.deleteIconBg}>
               <MaterialIcons name="delete" size={23} color="#ffffff" />
             </View>
-          </View>
+          </Pressable>
         ))}
 
         <Pressable style={styles.addPlace}>
