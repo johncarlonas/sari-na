@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import Navbar from './components/Navbar';
+import Navbar from '../components/Navbar';
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("window");
@@ -35,7 +35,7 @@ export default function Index() {
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>html,body,#map{height:100%;margin:0;padding:0} .leaflet-control-container{display:none}</style>
+    <style>html,body,#map{height:100%;margin:0;padding:0;background-color:#0b0b0b} .leaflet-control-container{display:none}</style>
   </head>
   <body>
     <div id="map"></div>
@@ -242,9 +242,10 @@ export default function Index() {
         domStorageEnabled={true}
         scalesPageToFit={true}
         startInLoadingState={true}
+        renderLoading={() => <View style={{ flex: 1, backgroundColor: '#000' }} />}
       />
 
-      <Navbar />
+      <Navbar screen="home" />
 
       <Animated.View
         {...panResponder.panHandlers}
