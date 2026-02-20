@@ -49,7 +49,7 @@ export default function Navbar({ screen }: { screen?: 'home' | 'profile' }) {
               onPress={() => router.push('/user/profile')}
               style={styles.profileButton}
             >
-              <Ionicons name="person-circle" size={32} color="#fff" />
+              <Ionicons name="person-circle" size={35} color="#fff" />
             </Pressable>
           ) : (
             <View style={styles.sideContainer} />

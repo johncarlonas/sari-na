@@ -9,6 +9,13 @@ export default function Profile() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [tempName, setTempName] = useState(userName);
 
+  const toTitleCase = (s: string) =>
+    s
+      .toLowerCase()
+      .split(' ')
+      .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
+      .join(' ');
+
   const handleSaveName = () => {
     // save the name exactly as typed (trimmed). Display will be uppercased on the profile.
     setUserName(tempName.trim());
@@ -38,7 +45,9 @@ export default function Profile() {
           </Pressable>
 
           <Pressable style={styles.menuItem} onPress={() => {
-            setTempName(userName);
+            // If stored name is ALL CAPS (from older saves), prefill modal with a nicer title-case
+            const prefill = userName && userName === userName.toUpperCase() ? toTitleCase(userName) : userName;
+            setTempName(prefill);
             setIsEditModalVisible(true);
           }}>
             <MaterialCommunityIcons name="pencil" size={30} color="#fff" />
@@ -185,6 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     color: '#000',
+    textTransform: 'uppercase',
   },
   modalButtons: {
     flexDirection: 'row',
