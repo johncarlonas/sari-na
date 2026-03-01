@@ -27,7 +27,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<Params>();
-  const [searchText, setSearchText] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const containerBorder = searchFocused ? '#002A7A' : '#cfdaef';
 
@@ -88,22 +87,22 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 90 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greeting}>Good day, Riezah Mae!</Text>
+        <Text style={styles.greeting}>Good day, John Renzzo!</Text>
 
-        <View style={[styles.searchContainer, { borderColor: containerBorder }]}>
-          <TextInput
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Search Location"
-            placeholderTextColor="#8ca0c7"
-            style={[styles.searchInput]}
-            onFocus={()=>setSearchFocused(true)}
-            onBlur={()=>setSearchFocused(false)}
-          />
-          <Pressable style={styles.searchIconWrapper}>
+        <Pressable
+          onPress={() => {
+            setSearchFocused(false);
+            router.push('/user/homeSearch');
+          }}
+          onPressIn={() => setSearchFocused(true)}
+          onPressOut={() => setSearchFocused(false)}
+          style={[styles.searchContainer, { borderColor: containerBorder }]}
+        >
+          <Text style={styles.searchPlaceholder}>Search Location</Text>
+          <Pressable style={styles.searchIconWrapper} pointerEvents="none">
             <Ionicons name="search" size={25} color="#fff" marginRight="5"/>
           </Pressable>
-        </View>
+        </Pressable>
 
         <Pressable onPress={() => router.push("/user/scan_qr")}>
           <LinearGradient 
@@ -228,6 +227,12 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingLeft: 10,
     paddingRight: 50, // leave space for full-width icon
+  },
+  searchPlaceholder: {
+    flex: 1,
+    color: "#8ca0c7",
+    fontSize: 14,
+    paddingLeft: 10,
   },
   searchIconWrapper: {
     position: "absolute",
