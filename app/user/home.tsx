@@ -41,17 +41,17 @@ export default function HomeScreen() {
     {
       title: "Supply Office",
       subtitle: "Academic Building III, Floor 1",
-      icon: "package-variant-closed" as const,
+      icon: "map-marker" as const,
     },
     {
       title: "AiRCoDe",
       subtitle: "Academic Building IV, Floor 4",
-      icon: "flask" as const,
+      icon: "map-marker" as const,
     },
     {
       title: "CS Laboratory",
       subtitle: "Academic Building IV, Floor 3",
-      icon: "monitor" as const,
+      icon: "map-marker" as const,
     },
   ];
 
@@ -153,12 +153,11 @@ export default function HomeScreen() {
             ]}
           >
             <View style={styles.destinationIconWrap}>
-              <MaterialCommunityIcons name={item.icon} size={21} color="#6d7da4" />
+              <MaterialCommunityIcons name={item.icon} size={23} color="#6d7da4" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.destinationTitle}>{item.title}</Text>
               <View style={styles.destinationSubRow}>
-                <Ionicons name="location-outline" size={14} color="#6b84b7" />
                 <Text style={styles.destinationSub}>{item.subtitle}</Text>
               </View>
             </View>
@@ -226,7 +225,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 0,
     paddingLeft: 10,
-    paddingRight: 50, // leave space for full-width icon
+    paddingRight: 50, 
   },
   searchPlaceholder: {
     flex: 1,

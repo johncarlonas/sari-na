@@ -10,7 +10,7 @@ import {
 	View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import places from "../data/places";
 
 type Place = {
@@ -125,7 +125,7 @@ export default function HomeSearchScreen() {
 									style={styles.resultCard}
 								>
 									<View style={styles.resultIconWrap}>
-										<Ionicons name="location-outline" size={20} color="#fff" />
+										<MaterialCommunityIcons name="map-marker" size={23} color="#6d7da4" />
 									</View>
 									<View style={styles.resultTextWrap}>
 										<Text style={styles.resultTitle}>{item.title}</Text>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
 		width: 42,
 		height: 42,
 		borderRadius: 12,
-		backgroundColor: "#2a80d8",
+		backgroundColor: "#cfdaf0",
 		alignItems: "center",
 		justifyContent: "center",
 		marginRight: 12,
