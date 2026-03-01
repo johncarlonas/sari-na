@@ -115,6 +115,26 @@ export default function HomeScreen() {
             </View>
           </View>
         ))}
+
+        {/* Quick Tip */}
+        <LinearGradient
+          colors={["#FF6B35", "#FF8C5A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.quickTipCard}
+        >
+          <View style={styles.quickTipIconWrapper}>
+            <View style={styles.quickTipIcon}>
+              <Ionicons name="bulb" size={25} color="#fff" />
+            </View>
+          </View>
+          <View style={styles.quickTipTextWrap}>
+            <Text style={styles.quickTipTitle}>Quick Tip</Text>
+            <Text style={styles.quickTipText}>
+              QR codes are located at room entrances and hallway pillars. Scan nearest QR to sync your starting point for accurate navigation.
+            </Text>
+          </View>
+        </LinearGradient>
       </ScrollView>
       </TouchableWithoutFeedback>
     </SafeAreaView>
@@ -261,4 +281,47 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   destinationSub: { color: "#6b84b7", fontSize: 13 },
+  quickTipCard: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 15,
+    backgroundColor: "#FF6B35", // gradient wrapper handles colors
+    shadowColor: "#FF6B35",
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  quickTipIconWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    backdropFilter: "blur(4px)",
+  },
+  quickTipIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quickTipTextWrap: {
+    flex: 1,
+  },
+  quickTipTitle: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
+  quickTipText: {
+    color: "rgba(255,255,255,0.95)",
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

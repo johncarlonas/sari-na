@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#edf2f8',
   },
   content: {
-    paddingTop: 90,
+    paddingTop: 85,
     paddingHorizontal: 14,
     marginLeft: 0,
     marginRight: 0,
@@ -223,13 +223,13 @@ const styles = StyleSheet.create({
   },
 
   avatarInner: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     borderRadius: 50,
     backgroundColor: '#1565C0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   avatarText: {
     fontSize: 30,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   menuText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#00328f',
   },
