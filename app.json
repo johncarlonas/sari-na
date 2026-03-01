@@ -1,12 +1,16 @@
 {
   "expo": {
-    "name": "sari-na",
+    "name": "SARI NA?",
     "slug": "sari-na",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sarina",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
+    "androidNavigationBar": {
+      "backgroundColor": "#002A7A",
+      "barStyle": "light-content"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -14,20 +18,21 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#002A7A",
-        "image": "./assets/images/sarina_logo.png"
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.sarina"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "splash": {
-      "image": "./assets/images/sarina_logo.png",
-      "resizeMode": "cover",
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#002A7A",
-      "imageWidth": 800,
+      "imageWidth": 200,
       "dark": { "backgroundColor": "#002A7A" }
     },
     "plugins": [
@@ -35,17 +40,24 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/sarina_logo.png",
-          "imageWidth": 800,
-          "resizeMode": "cover",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
           "backgroundColor": "#002A7A",
           "dark": { "backgroundColor": "#002A7A" }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b6aa46bf-1c16-4e8e-a6b6-0b8d603793c4"
+      }
     }
   }
 }
