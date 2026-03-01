@@ -97,8 +97,8 @@ export default function LoginSignupScreen() {
 	return (
 		<LinearGradient
 			colors={["#002A7A", "#1565C0"]}
-			start={{ x: 0.4, y: 0.4  }}
-			end={{ x: 0, y: 0 }}
+        	start={{ x: 0, y: 0 }}
+       	 	end={{ x: 0, y: 0.2 }}
 			style={styles.gradientBackground}
 		>
 			<SafeAreaView style={styles.safeArea}>
@@ -243,9 +243,9 @@ export default function LoginSignupScreen() {
 
 					<Pressable style={[styles.ctaButton, isSwitching && styles.buttonNoShadow]} onPress={() => router.replace('/user/home')}>
 						<LinearGradient
-							colors={["#002A7A", "#1565C0"]}
-							start={{ x: 0, y: 0.5 }}
-							end={{ x: 1, y: 0.5 }}
+							colors={["#1565C0", "#002A7A"]}
+							// start={{ x: 0, y: 0.5 }}
+							// end={{ x: 1, y: 0.5 }}
 							style={styles.ctaGradient}
 						>
 							<Text style={styles.ctaText}>{ctaLabel}</Text>
@@ -253,9 +253,9 @@ export default function LoginSignupScreen() {
 					</Pressable>
 
 						<LinearGradient
-							colors={["#002A7A", "#1565C0"]}
-							start={{ x: 0, y: 0.5 }}
-							end={{ x: 1, y: 0.5 }}
+							colors={["#1565C0", "#002A7A"]}
+							// start={{ x: 0, y: 0.5 }}
+							// end={{ x: 1, y: 0.5 }}
 							style={styles.googleWrapper}
 						>
 							<Pressable style={[styles.googleButton, isSwitching && styles.buttonNoShadow]}>

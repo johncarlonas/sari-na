@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   View,
@@ -10,8 +10,11 @@ import {
   Image,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -53,14 +56,39 @@ export default function HomeScreen() {
     },
   ];
 
+  // simple initial helper for avatar
+
+  // animation values for recent destination cards
+  const cardAnims = useRef<Animated.Value[]>([]);
+  if (cardAnims.current.length === 0) {
+    cardAnims.current = recent.map(() => new Animated.Value(0));
+  }
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // reset and run slide-in animation from left
+      cardAnims.current.forEach(anim => anim.setValue(0));
+      const animations = cardAnims.current.map((anim, i) =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 600,
+          delay: i * 150,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        })
+      );
+      Animated.stagger(150, animations).start();
+    }, [])
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <TouchableWithoutFeedback onPress={()=>{ Keyboard.dismiss(); setSearchFocused(false); }}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 90 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greeting}>Good day, Juan!</Text>
+        <Text style={styles.greeting}>Good day, Riezah Mae!</Text>
 
         <View style={[styles.searchContainer, { borderColor: containerBorder }]}>
           <TextInput
@@ -78,7 +106,13 @@ export default function HomeScreen() {
         </View>
 
         <Pressable onPress={() => router.push("/user/scan_qr")}>
-          <LinearGradient colors={['#1565C0', '#002A7A']} style={styles.scanCard}>
+          <LinearGradient 
+            
+            colors={['#002A7A', '#1565C0']} 
+            style={styles.scanCard}
+            // start={{ x: 0, y: 0 }}
+            // end={{ x: 1, y: 0.5 }}
+          >
             <View style={styles.scanIconBox}>
               <Image source={require("../../assets/images/qr-code.png")} style={styles.scanIcon} />
             </View>
@@ -101,8 +135,24 @@ export default function HomeScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Recent Destinations</Text>
-        {recent.map((item) => (
-          <View key={item.title} style={styles.destinationCard}>
+        {recent.map((item, idx) => (
+          <Animated.View
+            key={item.title}
+            style={[
+              styles.destinationCard,
+              {
+                opacity: cardAnims.current[idx],
+                transform: [
+                  {
+                    translateX: cardAnims.current[idx].interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-50, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.destinationIconWrap}>
               <MaterialCommunityIcons name={item.icon} size={21} color="#6d7da4" />
             </View>
@@ -113,14 +163,14 @@ export default function HomeScreen() {
                 <Text style={styles.destinationSub}>{item.subtitle}</Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
         ))}
 
         {/* Quick Tip */}
         <LinearGradient
-          colors={["#FF6B35", "#FF8C5A"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          colors={["#FF8C5A", "#FF6B35"]}
+          // start={{ x: 0, y: 0 }}
+          // end={{ x: 1, y: 0 }}
           style={styles.quickTipCard}
         >
           <View style={styles.quickTipIconWrapper}>

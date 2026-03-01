@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing, Keyboard } from 'react-native';
+// @ts-ignore: no types available locally
+import MaskedView from '@react-native-masked-view/masked-view';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [userName, setUserName] = useState('Riezah Mae Thrisia Encisa');
+  const [userName, setUserName] = useState('John Renzzo Montenegro');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   // editing pieces
   const [tempFirst, setTempFirst] = useState('');
@@ -70,17 +72,33 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
       >
         <View style={styles.profileCard}>
-            <View style={styles.avatarInner}>
-              <Text style={styles.avatarText}>{getInitials(userName)}</Text>
-            </View>
+            <LinearGradient
+              colors={["#1565C0", "#002A7A"]}
+              style={styles.avatarOuter}
+            >
+              <View style={styles.avatarInner}>
+                <MaskedView
+                  maskElement={<Text style={styles.avatarText}>{getInitials(userName)}</Text>}
+                  style={styles.maskedContainer}
+                >
+                  <LinearGradient
+                    colors={["#1565C0", "#002A7A"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.maskedContainer}
+                  />
+                </MaskedView>
+              </View>
+            </LinearGradient>
             <Text style={styles.userName}>{userName.toUpperCase()}</Text>
         </View>
 
-        <View style={styles.menuContainer}>
           <Animated.View style={[styles.menuCard, styles.menuAnim, {
             opacity: menuAnims.current[0],
             transform: [{
@@ -89,6 +107,7 @@ export default function Profile() {
                 outputRange: [20, 0],
               }),
             }],
+            marginBottom: 10,
           }]}
           >
             <LinearGradient colors={['#1E88E5', '#1565C0']} style={styles.menuIconBox}>
@@ -106,6 +125,7 @@ export default function Profile() {
                 outputRange: [20, 0],
               }),
             }],
+            marginBottom: 10,
           }]}
             >
             <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.menuIconBox}>
@@ -123,6 +143,7 @@ export default function Profile() {
                 outputRange: [20, 0],
               }),
             }],
+            marginBottom: 10,
           }]}
           >
             <LinearGradient colors={['#10B981', '#059669']} style={styles.menuIconBox}>
@@ -140,6 +161,7 @@ export default function Profile() {
                 outputRange: [20, 0],
               }),
             }],
+            marginBottom: 10,
           }]}
           >
             <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.menuIconBox}>
@@ -149,17 +171,16 @@ export default function Profile() {
             <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
           </Animated.View>
 
-          <Pressable style={styles.logoutButton} onPress={() => router.replace('/login_signup')}>
+          <Pressable style={[styles.logoutButton, {marginBottom: 10}]} onPress={() => router.replace('/login_signup')}>
             <LinearGradient
-                  colors={["#002A7A", "#1565C0"]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
+                  colors={["#1565C0", "#002A7A"]}
+                  // start={{ x: 0, y: 0 }}
+                  // end={{ x: 1, y: 0.5 }}
                   style={styles.logoutGradient}
             >
                    <Text style={styles.logoutText}>Logout</Text>
             </LinearGradient>
           </Pressable>
-        </View>
       </ScrollView>
 
       <Modal
@@ -205,57 +226,64 @@ export default function Profile() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#edf2f8',
+    backgroundColor: '#FFFFFF',
   },
   content: {
-    paddingTop: 85,
+    paddingTop: 70,
     paddingHorizontal: 14,
     marginLeft: 0,
     marginRight: 0,
   },
   profileCard: {
-    backgroundColor: 'none',
-    paddingVertical: 0,
+    backgroundColor: '#edf2f8',
+    paddingVertical: 22,
     paddingHorizontal: 20,
     flexDirection: 'column',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    marginLeft: -15,
+    marginRight: -15,
   },
 
-  avatarInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 50,
-    backgroundColor: '#1565C0',
+  avatarOuter: {
+    width: 100,
+    height: 100,
+    borderRadius: 54,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
+  avatarInner: {
+    width: 85,
+    height: 85,
+    borderRadius: 45,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+  },
+  maskedContainer: {
+    width: 85,
+    height: 85,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarText: {
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#002A7A',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: 85, // match container height for vertical centering
+    // remove explicit width so text can shrink to fit and alignSelf centers it
+    alignSelf: 'center',
   },
   userName: {
-    fontSize: 21,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#00328f',
+    color: '#002A7A',
     letterSpacing: 0.5,
     textAlign: 'center',
-  },
-  menuContainer: {
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 50,
-    marginTop: 2,
-    gap: 10,
-    marginLeft: -24,
-    marginRight: -24,
-    marginBottom: -20,
   },
   menuAnim: {
     // placeholder for Animated.View wrapper

@@ -9,8 +9,8 @@ export default function Navbar({ screen }: { screen?: 'home' | 'profile' | 'scan
       <StatusBar style="light" backgroundColor="#1565C0" />
       <LinearGradient
         colors={['#002A7A', '#1565C0']}
-        start={{ x: 1, y: 1 }}
-        end={{ x: 0, y: 0 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1.1 }}
         style={styles.navbar}
         pointerEvents="box-none"
       >
