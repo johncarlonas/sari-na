@@ -1,0 +1,36 @@
+{
+    "buildings": [
+{
+  "building_id": "CCS-01",
+  "building_name": "College of Computer Studies",
+  "floors": [
+    {
+      "level": 1,
+      "map_asset": "ccs_floor_1.png",
+      "graph": {
+        "nodes": [
+          { "id": "ccs_entrance", "type": "qr", "x": 50, "y": 100, "label": "Entrance QR" },
+          { "id": "room_1", "type": "room", "x": 200, "y": 100, "label": "Room 1" },
+          { "id": "room_6", "type": "room", "x": 200, "y": 100, "label": "Room 6" },
+          { "id": "room_5", "type": "room", "x": 200, "y": 100, "label": "Room 5" },
+          { "id": "room_4", "type": "room", "x": 200, "y": 100, "label": "Room 4" },
+          { "id": "jpcs office", "type": "office", "x": 200, "y": 100, "label": "JPCS Office" },
+          { "id": "ccs sc", "type": "office", "x": 200, "y": 100, "label": "CCS SC Office" },
+          { "id": "men's cr", "type": "comfort room", "x": 200, "y": 100, "label": "Men's Comfort Room" },
+          { "id": "women's cr", "type": "comfort room", "x": 200, "y": 100, "label": "Women's Comfort Room" },
+          { "id": "floor1_leftside_stairs", "type": "stairs", "x": 200, "y": 100, "label": "West/Left Stairs" },
+          { "id": "floor1_rightside_stairs", "type": "stairs", "x": 200, "y": 100, "label": "East/Right Stairs" },
+
+
+          { "id": "room_101", "type": "room", "x": 50, "y": 250, "label": "Comp Lab 1" },
+          { "id": "stairs_up", "type": "stairs", "x": 200, "y": 100, "label": "North Stairs" }
+        ],
+        "edges": [
+          { "from": "ccs_entrance", "to": "room_101", "weight": 150 },
+          { "from": "ccs_entrance", "to": "stairs_up", "weight": 150 },
+        ]
+      }
+    }
+  ]
+]
+}
