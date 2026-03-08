@@ -65,20 +65,15 @@ export default function HomeSearchScreen() {
 				keyboardShouldPersistTaps="handled"
 				onScrollBeginDrag={() => Keyboard.dismiss()}
 			>
-					<View style={styles.headerRow}>
-						<Pressable
-							style={styles.backButton}
-							onPress={() => {
-								setSearchText("");
-								setSearchFocused(false);
-								Keyboard.dismiss();
-								router.replace("/user/home");
-							}}
-						>
-							<Ionicons name="chevron-back" size={24} color="#002A7A" />
-						</Pressable>
-						<Text style={styles.greeting}>Navigate</Text>
-					</View>
+<Pressable style={styles.headerRow} onPress={() => {
+				setSearchText("");
+				setSearchFocused(false);
+				Keyboard.dismiss();
+				router.replace("/user/home");
+			}}>
+				<Ionicons name="chevron-back" size={24} color="#002A7A" />
+				<Text style={[styles.greeting, { marginLeft: 4 }]}>Navigate</Text>
+			</Pressable>
 
 					<View style={[styles.searchContainer, { borderColor: containerBorder }]}>
 						<TextInput
@@ -155,6 +150,8 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		marginBottom: 18,
+		paddingHorizontal: 0,
+		paddingVertical: 6,
 	},
 	backButton: {
 		marginRight: 6,

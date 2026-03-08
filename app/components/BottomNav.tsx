@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Pressable, Text, StyleSheet, Animated } from 'react-native';
+import { View, Pressable, StyleSheet, Animated } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,12 +11,12 @@ export default function BottomNav() {
   const insets = useSafeAreaInsets();
 
   const isHome = pathname === '/user/home';
-  const isScan = pathname === '/user/scan_qr';
+  const isMap = pathname === '/user/map_view';
   const isProfile = pathname === '/user/profile';
-  const activeIndex = isHome ? 0 : isScan ? 1 : 2;
+  const activeIndex = isHome ? 0 : isMap ? 1 : 2;
 
   const homeAnim = useRef(new Animated.Value(isHome ? 1 : 0)).current;
-  const scanAnim = useRef(new Animated.Value(isScan ? 1 : 0)).current;
+  const mapAnim = useRef(new Animated.Value(isMap ? 1 : 0)).current;
   const profileAnim = useRef(new Animated.Value(isProfile ? 1 : 0)).current;
   const bubbleX = useRef(new Animated.Value(0)).current;
   const [tabCenters, setTabCenters] = useState<number[]>([]);
@@ -30,8 +30,8 @@ export default function BottomNav() {
         duration: 230,
         useNativeDriver: true,
       }),
-      Animated.timing(scanAnim, {
-        toValue: isScan ? 1 : 0,
+      Animated.timing(mapAnim, {
+        toValue: isMap ? 1 : 0,
         duration: 230,
         useNativeDriver: true,
       }),
@@ -41,7 +41,7 @@ export default function BottomNav() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [isHome, isScan, isProfile, homeAnim, scanAnim, profileAnim]);
+  }, [isHome, isMap, isProfile, homeAnim, mapAnim, profileAnim]);
 
   useEffect(() => {
     if (tabCenters.length !== 3) return;
@@ -139,17 +139,17 @@ export default function BottomNav() {
 
         <Pressable
           style={styles.bottomNavItem}
-          onPress={() => router.replace('/user/scan_qr')}
+          onPress={() => router.replace('/user/map_view')}
           onLayout={(event) => {
             const { x, width } = event.nativeEvent.layout;
             handleTabLayout(1, x, width);
           }}
         >
-          <Animated.View style={[styles.tabContent, tabAnimatedStyle(scanAnim)]}>
-            <Animated.View style={iconAnimatedStyle(scanAnim)}>
-              <Ionicons name={isScan ? "qr-code" : "qr-code-outline"} size={28} color="#ffffff" />
+          <Animated.View style={[styles.tabContent, tabAnimatedStyle(mapAnim)]}>
+            <Animated.View style={iconAnimatedStyle(mapAnim)}>
+              <Ionicons name={isMap ? "map" : "map-outline"} size={28} color="#ffffff" />
             </Animated.View>
-            <Animated.Text style={[styles.bottomNavTextActive, labelAnimatedStyle(scanAnim)]}>Scan</Animated.Text>
+            <Animated.Text style={[styles.bottomNavTextActive, labelAnimatedStyle(mapAnim)]}>Map</Animated.Text>
           </Animated.View>
         </Pressable>
 

@@ -55,8 +55,6 @@ export default function HomeScreen() {
     },
   ];
 
-  // simple initial helper for avatar
-
   // animation values for recent destination cards
   const cardAnims = useRef<Animated.Value[]>([]);
   if (cardAnims.current.length === 0) {
@@ -92,7 +90,7 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => {
             setSearchFocused(false);
-            router.push('/user/homeSearch');
+            router.push('/user/home_search');
           }}
           onPressIn={() => setSearchFocused(true)}
           onPressOut={() => setSearchFocused(false)}
@@ -343,7 +341,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     marginTop: 15,
-    backgroundColor: "#FF6B35", // gradient wrapper handles colors
+    backgroundColor: "#FF6B35",
     shadowColor: "#FF6B35",
     shadowOpacity: 0.3,
     shadowRadius: 12,

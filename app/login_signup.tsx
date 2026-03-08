@@ -6,13 +6,13 @@ import {
 	Image,
 	Keyboard,
 	Pressable,
-	SafeAreaView,
 	StyleSheet,
 	Text,
 	TextInput,
 	TouchableWithoutFeedback,
 	View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign, Ionicons, Entypo } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -101,7 +101,7 @@ export default function LoginSignupScreen() {
        	 	end={{ x: 0, y: 0.2 }}
 			style={styles.gradientBackground}
 		>
-			<SafeAreaView style={styles.safeArea}>
+			<SafeAreaView style={styles.safeArea} edges={["top"]}>
 				<TouchableWithoutFeedback
 					onPress={() => {
 						Keyboard.dismiss();
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: "transparent",
 		paddingHorizontal: 0,
-		paddingTop: 14,
+		paddingTop: 0,
 		marginRight: 0,
 		marginLeft: 0,
 	},
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
 		borderTopRightRadius: 28,
 		paddingHorizontal: 22,
 		paddingTop: 26,
-		paddingBottom: 24,
+		paddingBottom: 20,
 	},
 	togglePill: {
 		position: "absolute",
