@@ -65,20 +65,15 @@ export default function HomeSearchScreen() {
 				keyboardShouldPersistTaps="handled"
 				onScrollBeginDrag={() => Keyboard.dismiss()}
 			>
-					<View style={styles.headerRow}>
-						<Pressable
-							style={styles.backButton}
-							onPress={() => {
-								setSearchText("");
-								setSearchFocused(false);
-								Keyboard.dismiss();
-								router.replace("/user/home");
-							}}
-						>
-							<Ionicons name="chevron-back" size={24} color="#002A7A" />
-						</Pressable>
-						<Text style={styles.greeting}>Navigate</Text>
-					</View>
+<Pressable style={styles.headerRow} onPress={() => {
+				setSearchText("");
+				setSearchFocused(false);
+				Keyboard.dismiss();
+				router.replace("/user/home");
+			}}>
+				<Ionicons name="chevron-back" size={24} color="#002A7A" />
+				<Text style={[styles.greeting, { marginLeft: 4 }]}>Navigate</Text>
+			</Pressable>
 
 					<View style={[styles.searchContainer, { borderColor: containerBorder }]}>
 						<TextInput
@@ -109,7 +104,16 @@ export default function HomeSearchScreen() {
 					{hasQuery && (
 						<View>
 							<Text style={styles.sectionTitle}>Search Results</Text>
-							{results.map((item) => (
+							{results.length === 0 ? (
+								<View style={styles.emptyWrap}>
+									<View style={styles.emptyIconCircle}>
+										<Ionicons name="close-circle" size={38} color="#2a80d8" />
+									</View>
+									<Text style={styles.emptyTitle}>No matches found</Text>
+									<Text style={styles.emptyText}>Try a different query</Text>
+								</View>
+							) : (
+								results.map((item) => (
 								<Pressable
 									key={item.id}
 									onPress={() =>
@@ -135,7 +139,7 @@ export default function HomeSearchScreen() {
 									</View>
 									<Ionicons name="chevron-forward" size={22} color="#9ab0d6" />
 								</Pressable>
-							))}
+							)))}
 						</View>
 					)}
 			</ScrollView>
@@ -155,6 +159,8 @@ const styles = StyleSheet.create({
 		flexDirection: "row",
 		alignItems: "center",
 		marginBottom: 18,
+		paddingHorizontal: 0,
+		paddingVertical: 6,
 	},
 	backButton: {
 		marginRight: 6,

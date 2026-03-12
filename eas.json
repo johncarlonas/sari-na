@@ -5,7 +5,8 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "env": {}
     }
   }
 }

@@ -13,6 +13,7 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const [userName, setUserName] = useState('John Renzzo Montenegro');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
   // editing pieces
   const [tempFirst, setTempFirst] = useState('');
   const [tempLast, setTempLast] = useState('');
@@ -99,23 +100,25 @@ export default function Profile() {
             <Text style={styles.userName}>{userName.toUpperCase()}</Text>
         </View>
 
-          <Animated.View style={[styles.menuCard, styles.menuAnim, {
-            opacity: menuAnims.current[0],
-            transform: [{
-              translateY: menuAnims.current[0].interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0],
-              }),
-            }],
-            marginBottom: 10,
-          }]}
-          >
-            <LinearGradient colors={['#1E88E5', '#1565C0']} style={styles.menuIconBox}>
-              <MaterialIcons name="info-outline" size={24} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.menuText}>About</Text>
-            <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
-          </Animated.View>
+          <Pressable onPress={() => setIsAboutModalVisible(true)} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
+            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+              opacity: menuAnims.current[0],
+              transform: [{
+                translateY: menuAnims.current[0].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              }],
+              marginBottom: 10,
+            }]}
+            >
+              <LinearGradient colors={['#1E88E5', '#1565C0']} style={styles.menuIconBox}>
+                <MaterialIcons name="info-outline" size={24} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.menuText}>About</Text>
+              <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
+            </Animated.View>
+          </Pressable>
 
           <Animated.View style={[styles.menuCard, styles.menuAnim, {
             opacity: menuAnims.current[1],
@@ -219,6 +222,53 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
+
+      {/* about dialog */}
+      <Modal
+        visible={isAboutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAboutModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismissArea} onPress={() => setIsAboutModalVisible(false)} />
+          <View style={styles.modalCard}>
+            <View style={styles.aboutHeader}>
+              <Text style={styles.aboutTitle}>About SARI NA?</Text>
+              <Pressable style={styles.aboutCloseButton} onPress={() => setIsAboutModalVisible(false)}>
+                <Ionicons name="close" size={22} color="#002A7A" />
+              </Pressable>
+            </View>
+            <ScrollView
+              style={styles.aboutScroll}
+              contentContainerStyle={styles.aboutScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.aboutText, styles.aboutCenter]}>
+                Version 2.0.0
+              </Text>
+              <Text style={[styles.aboutSubtitle, {marginTop:12}]}>The Intelligent Campus Navigation Ecosystem</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:20}]}>
+                SARI NA is a hybrid navigation solution engineered to solve the “indoor
+                blind spot” inherent in traditional GPS. While satellite positioning
+                works well across the CSPC campus, it lacks vertical accuracy and signal
+                penetration inside multi‑story buildings. Version 2.0.0 bridges that gap
+                by merging satellite tracking with high‑precision computer vision,
+                delivering a seamless door‑to‑door experience for students, faculty, and
+                visitors.
+              </Text>
+              <Text style={[styles.aboutText, {marginTop:16, fontWeight:'700'}]}>How to Use SARI NA</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:8}]}>1. Scan the nearest QR code to determine your current location.</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>2. Search for the destination you want to reach.</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>3. Tap the result to view the campus map and building directions.</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>4. Follow the displayed route; scan intermediate QR checkpoints along the way.</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>5. Upon arrival, perform the final verification scan to complete navigation.{'\n'}</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, styles.aboutItalic, {marginTop:16}]}>“Bridging distances,
+                connecting classrooms, and navigating the future of CSPC.”</Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -274,8 +324,8 @@ const styles = StyleSheet.create({
     color: '#002A7A',
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 85, // match container height for vertical centering
-    // remove explicit width so text can shrink to fit and alignSelf centers it
+    lineHeight: 85, 
+
     alignSelf: 'center',
   },
   userName: {
@@ -286,7 +336,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   menuAnim: {
-    // placeholder for Animated.View wrapper
+
   },
   menuCard: {
     backgroundColor: '#f7f9fd',
@@ -349,6 +399,45 @@ const styles = StyleSheet.create({
     width: '85%',
     maxWidth: 400,
   },
+  /* shared with navigation screen for guide/complete dialogs */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(4, 17, 43, 0.44)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalDismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    backgroundColor: '#f5f8fd',
+    borderRadius: 20,
+    paddingHorizontal: 25,
+    paddingTop: 20,
+    paddingBottom: 8,
+    maxHeight: '88%',
+    zIndex: 1,
+  },
+  modalPrimary: {
+    height: 50,
+    borderRadius: 13,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryGradient: {
+    flex: 1,
+    borderRadius: 30,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -399,5 +488,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  aboutText: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#333',
+  },
+  aboutCenter: {
+    textAlign: 'center',
+  },
+  aboutItalic: {
+    fontStyle: 'italic',
+  },
+  aboutTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#002A7A',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  aboutHeader: {
+    position: 'relative',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+  aboutCloseButton: {
+    position: 'absolute',
+    right: 0,
+    top: -2,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutSubtitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  aboutJustified: {
+    textAlign: 'justify',
+  },
+  aboutScroll: {
+    maxHeight: '90%',
+  },
+  aboutScrollContent: {
+    paddingBottom: 1,
   },
 });

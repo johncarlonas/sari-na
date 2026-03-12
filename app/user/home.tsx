@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   View,
@@ -23,6 +23,13 @@ type Params = {
   detail?: string;
 };
 
+type Place = {
+  id?: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -30,14 +37,27 @@ export default function HomeScreen() {
   const [searchFocused, setSearchFocused] = useState(false);
   const containerBorder = searchFocused ? '#002A7A' : '#cfdaef';
 
-  const currentLocation = useMemo(() => {
+  const [currentLocation, setCurrentLocation] = useState<{location:string;detail:string}|null>(null);
+
+  useEffect(() => {
+    // if navigation passes new location, update and persist in global
     const location = typeof params.location === "string" ? params.location : "";
     const detail = typeof params.detail === "string" ? params.detail : "";
-    if (!location) return null;
-    return { location, detail };
+    if (location) {
+      const obj = { location, detail };
+      setCurrentLocation(obj);
+      try { (global as any).currentLocation = obj; } catch {};
+    }
   }, [params.location, params.detail]);
 
-  const recent = [
+  useEffect(() => {
+    try {
+      const stored = (global as any).currentLocation;
+      if (stored) setCurrentLocation(stored);
+    } catch {}
+  }, []);
+
+  const recent: Place[] = [
     {
       title: "Supply Office",
       subtitle: "Academic Building III, Floor 1",
@@ -54,8 +74,6 @@ export default function HomeScreen() {
       icon: "map-marker" as const,
     },
   ];
-
-  // simple initial helper for avatar
 
   // animation values for recent destination cards
   const cardAnims = useRef<Animated.Value[]>([]);
@@ -92,7 +110,7 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => {
             setSearchFocused(false);
-            router.push('/user/homeSearch');
+            router.push('/user/home_search');
           }}
           onPressIn={() => setSearchFocused(true)}
           onPressOut={() => setSearchFocused(false)}
@@ -134,26 +152,32 @@ export default function HomeScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Recent Destinations</Text>
-        {recent.map((item, idx) => (
-          <Animated.View
-            key={item.title}
-            style={[
-              styles.destinationCard,
-              {
-                opacity: cardAnims.current[idx],
-                transform: [
-                  {
-                    translateX: cardAnims.current[idx].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-50, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
+        {recent.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No recent destinations</Text>
+            <Text style={styles.emptyText}>Start navigating to add some</Text>
+          </View>
+        ) : (
+          recent.map((item, idx) => (
+            <Animated.View
+              key={item.title}
+              style={[
+                styles.destinationCard,
+                {
+                  opacity: cardAnims.current[idx],
+                  transform: [
+                    {
+                      translateX: cardAnims.current[idx].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-50, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
             <View style={styles.destinationIconWrap}>
-              <MaterialCommunityIcons name={item.icon} size={23} color="#6d7da4" />
+              <MaterialCommunityIcons name={item.icon as any} size={23} color="#6d7da4" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.destinationTitle}>{item.title}</Text>
@@ -162,7 +186,7 @@ export default function HomeScreen() {
               </View>
             </View>
           </Animated.View>
-        ))}
+        ))) }
 
         {/* Quick Tip */}
         <LinearGradient
@@ -285,7 +309,8 @@ const styles = StyleSheet.create({
   locationBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
+    paddingVertical: 6,
   },
   badgePrefix: { color: "#002a7a", fontSize: 14, marginLeft: 6 },
   locationBox: {
@@ -300,7 +325,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   badgeLocation: { color: "#002A7A", fontSize: 13, fontWeight: "800" },
-  badgeDetail: { color: "#666", fontSize: 11, marginTop: 2 },
+  badgeDetail: { color: "#666", fontSize: 11, marginTop: 1 },
   sectionTitle: {
     color: "#00328f",
     fontSize: 18,
@@ -343,7 +368,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     marginTop: 15,
-    backgroundColor: "#FF6B35", // gradient wrapper handles colors
+    backgroundColor: "#FF6B35",
     shadowColor: "#FF6B35",
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -378,4 +403,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
+  emptyWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 40,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#e3e8f4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    color: "#002A7A",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  emptyText: {
+    color: "#6b84b7",
+    fontSize: 14,
+    textAlign: "center",
+  }
 });

@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
-import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+
+type Params = {
+  mode?: string;
+  location?: string;
+  detail?: string;
+  placeId?: string;
+};
 
 type Rect = {
   x: number;
@@ -16,6 +23,7 @@ const CUTOUT_RADIUS = 14;
 
 export default function ScanQrScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<Params>();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [screenRect, setScreenRect] = useState<Rect | null>(null);
@@ -51,11 +59,31 @@ export default function ScanQrScreen() {
   }, [scanned, scanLineAnim]);
 
   const onScanSuccess = () => {
+    const mode = typeof params.mode === "string" ? params.mode : "";
+    const location = typeof params.location === "string" ? params.location : "Room 1";
+    const detail =
+      typeof params.detail === "string"
+        ? params.detail
+        : "Academic Building IV (College of Computer Studies)";
+    const placeId = typeof params.placeId === "string" ? params.placeId : "";
+
+    if (mode === "arrival") {
+      router.replace({
+        pathname: "/user/arrival",
+        params: {
+          location,
+          detail,
+          placeId,
+        },
+      });
+      return;
+    }
+
     router.replace({
       pathname: "/user/home",
       params: {
-        location: "Room 5",
-        detail: "Academic Building V, Floor 1",
+        location,
+        detail,
       },
     });
   };
@@ -117,6 +145,11 @@ export default function ScanQrScreen() {
         setScreenRect({ x, y, width, height });
       }}
     >
+      <Pressable style={styles.headerRow} onPress={() => router.back()}>
+        <Ionicons name="chevron-back" size={24} color="#ffffff" />
+        <Text style={[styles.backText, { marginLeft: 4 }]}>Back</Text>
+      </Pressable>
+
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
@@ -306,6 +339,29 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#000",
+
+    marginTop: 40,
+  },
+  headerRow: {
+    position: "absolute",
+    top: 90,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  backButton: {
+    marginRight: 6,
+    paddingRight: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backText: {
+    color: "#ffffff",
+    fontSize: 25,
+    fontWeight: "900",
   },
   loadingScreen: {
     flex: 1,
@@ -351,6 +407,7 @@ const styles = StyleSheet.create({
     height: FRAME_SIZE,
     position: "relative",
     overflow: "hidden",
+    marginTop: 20, // small offset so frame doesn't sit directly under header
   },
   scanLine: {
     position: "absolute",
