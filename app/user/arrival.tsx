@@ -29,6 +29,11 @@ export default function ArrivalScreen() {
   const location = typeof params.location === "string" ? params.location : "CCS Faculty Lounge";
   const detail = typeof params.detail === "string" ? params.detail : "Academic Building IV, Floor 2";
 
+  useEffect(() => {
+    // persist new current location globally so home picks it up even after navigating away
+    try { (global as any).currentLocation = { location, detail }; } catch {}
+  }, [location, detail]);
+
   const destinationFloor = useMemo(() => {
     const floorMatch = detail.match(/Floor\s*([0-9]+)/i);
     return floorMatch?.[1] ? `Floor ${floorMatch[1]}` : "Destination";
