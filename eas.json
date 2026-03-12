@@ -6,9 +6,7 @@
       "android": {
         "buildType": "apk"
       },
-      "env": {
-        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "@MAPBOX_TOKEN"
-      }
+      "env": {}
     }
   }
 }

@@ -1,13 +1,15 @@
-import React, { useMemo, useState, useRef } from "react";
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View, ScrollView, Animated, PanResponder } from "react-native";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View, ScrollView, Animated, Easing } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import type { Feature, LineString } from "geojson";
 import places from "../data/places";
-
+import { LinearGradient } from "expo-linear-gradient";
 // eslint-disable-next-line import/no-unresolved
-import MapBoxView, { LngLat } from "../components/map";
+import Index from "../components/map";
+
+// simple tuple for longitude/latitude pairs used in this screen
+type LngLat = [number, number];
 
 type Params = {
   location?: string;
@@ -30,61 +32,22 @@ export default function NavigationScreen() {
   const params = useLocalSearchParams<Params>();
   const insets = useSafeAreaInsets();
   const navSafeBottom = Math.max(insets.bottom, 14);
-  const CARD_COLLAPSED_HEIGHT = 230 + navSafeBottom; 
-  const CARD_EXPANDED_HEIGHT = Math.min(
-    CARD_COLLAPSED_HEIGHT + 150,
-    Dimensions.get("window").height * 0.5
-  );
-  const COLLAPSED_VISIBLE = CARD_COLLAPSED_HEIGHT - navSafeBottom;
-  const EXPANDED_VISIBLE = CARD_EXPANDED_HEIGHT - navSafeBottom;
-  const cardHeight = useRef(new Animated.Value(COLLAPSED_VISIBLE)).current;
-  const startHeightRef = useRef(COLLAPSED_VISIBLE);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 5,
-      onPanResponderGrant: () => {
-        cardHeight.stopAnimation((value) => {
-          startHeightRef.current = value;
-        });
-      },
-      onPanResponderMove: (_, gesture) => {
-        const dragged = startHeightRef.current - gesture.dy;
-        const nextHeight = Math.max(
-          COLLAPSED_VISIBLE,
-          Math.min(EXPANDED_VISIBLE, dragged)
-        );
-        cardHeight.setValue(nextHeight);
-      },
-      onPanResponderRelease: (_, gesture) => {
-        const dragged = startHeightRef.current - gesture.dy;
-        const releasedHeight = Math.max(
-          COLLAPSED_VISIBLE,
-          Math.min(EXPANDED_VISIBLE, dragged)
-        );
-        const midpoint = (COLLAPSED_VISIBLE + EXPANDED_VISIBLE) / 2;
-        const toValue = releasedHeight > midpoint ? EXPANDED_VISIBLE : COLLAPSED_VISIBLE;
-
-        Animated.spring(cardHeight, {
-          toValue,
-          useNativeDriver: false,
-          bounciness: 0,
-        }).start(() => {
-          startHeightRef.current = toValue;
-        });
-      },
-    })
-  ).current;
+  const CARD_COLLAPSED_HEIGHT = 260 + navSafeBottom; // reduced now that scan button removed
+  // fixed height, no collapse behaviour
 
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const [hasLiveLocation, setHasLiveLocation] = useState(false);
+  const [showLostToast, setShowLostToast] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastX = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
   const [liveOriginCoords, setLiveOriginCoords] = useState<LngLat>(DEFAULT_CAMPUS_CENTER);
   const allPlaces = places as Place[];
 
-  // Mapbox is handled inside the MapBoxView component; it also tracks
-  // GPS and reports back via onLocationStatusChange.
+  // Map rendering is done by MapBoxView (now using react-native-maps/OSM);
+  // it also tracks GPS and reports back via onLocationStatusChange.
 
   const location = typeof params.location === "string" ? params.location : "Selected location";
   const detail = typeof params.detail === "string" ? params.detail : "";
@@ -99,7 +62,7 @@ export default function NavigationScreen() {
     return allPlaces.find((item) => item.id === "ccs") ?? null;
   }, [allPlaces]);
 
-  // campus bounding box for Mapbox maxBounds
+  // campus bounding box used for fitting the map view
   const campusBounds = useMemo(() => {
     if (!allPlaces.length) {
       return {
@@ -143,30 +106,16 @@ export default function NavigationScreen() {
     return `Proceed to Floor ${match[1]}`;
   }, [destinationSubtitle]);
 
-  const routeLine: Feature<LineString> = useMemo(() => {
-    // line updates whenever live origin changes
-    const fallbackOrigin: LngLat = ccsPlace
-      ? ([ccsPlace.coords[1], ccsPlace.coords[0]] as LngLat)
-      : ([DEFAULT_CAMPUS_CENTER[0], DEFAULT_CAMPUS_CENTER[1]] as LngLat);
-    const originCoords: LngLat = hasLiveLocation ? liveOriginCoords : fallbackOrigin;
-
-    const midLng = (originCoords[0] + destinationCoords[0]) / 2;
-    const midLat = (originCoords[1] + destinationCoords[1]) / 2 + 0.00008;
-    const coordinates: [number, number][] = [
-      originCoords,
-      [midLng, midLat],
-      destinationCoords,
+  const guideSteps = useMemo(() => {
+    const match = destinationSubtitle.match(/Floor\s*([0-9]+)/i);
+    const destFloor = match?.[1] || "destination";
+    return [
+      "Proceed to ground floor of the building you are currently in",
+      "Follow the track on map and proceed to the destination building",
+      `Proceed to ${destFloor} floor`,
     ];
+  }, [destinationSubtitle]);
 
-    return {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates,
-      },
-      properties: {},
-    };
-  }, [destinationCoords, ccsPlace, hasLiveLocation, liveOriginCoords]);
 
 
 
@@ -197,15 +146,41 @@ export default function NavigationScreen() {
     });
   };
 
+  // toast timer with fade and slide
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setShowLostToast(true);
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(toastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(toastX, { toValue: -60, duration: 300, useNativeDriver: true }),
+        ]),
+        Animated.delay(5000),
+        Animated.parallel([
+          Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(toastX, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ]),
+      ]).start(() => setShowLostToast(false));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // floating button very gentle pulse
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(buttonScale, { toValue: 1.02, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(buttonScale, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.mapWrap}>
-        <MapBoxView
-          destinationCoords={destinationCoords}
-          routeLine={routeLine}
-          campusBounds={campusBounds}
-          onLocationStatusChange={setHasLiveLocation}
-          onLocationUpdate={setLiveOriginCoords}
+        <Index
+          simple={false}
+          destination={{ latitude: destinationCoords[1], longitude: destinationCoords[0] }}
         />
 
         <Pressable style={styles.backButton} onPress={() => router.back()}>
@@ -213,13 +188,13 @@ export default function NavigationScreen() {
           <Text style={[styles.backText, { marginLeft: 4 }]}>Navigation</Text>
         </Pressable>
 
-        <View style={[styles.androidNavBg, { height: navSafeBottom }]} pointerEvents="none" />
+        <View style={[styles.androidNavBg, { height: navSafeBottom  }]} pointerEvents="none" />
 
-        <Animated.View
-          style={[styles.bottomCardWrapper, { height: cardHeight }]}
+        <View
+          style={[styles.bottomCardWrapper, { height: CARD_COLLAPSED_HEIGHT + 5 }]}
         >
-          <View style={[styles.bottomCard, { paddingBottom: navSafeBottom }] }>
-            <View style={styles.dragArea} {...panResponder.panHandlers}>
+          <View style={styles.bottomCard}>
+            <View style={styles.dragArea}>
               {/* drag handle (panResponder attached to top area) */}
               <View style={styles.handle} />
               <View style={styles.routeRow}>
@@ -234,7 +209,7 @@ export default function NavigationScreen() {
 
             <View style={styles.routeRow}>
               <View style={styles.iconRed}>
-                <Ionicons name="location" size={15} color="#ffffff" />
+                <Ionicons name="location" size={25} color="#cf1f2d" />
               </View>
               <View style={styles.routeTextWrap}>
                 <Text style={styles.routeTitle}>{destinationTitle}</Text>
@@ -245,26 +220,56 @@ export default function NavigationScreen() {
 
             <ScrollView
               style={styles.extraContent}
-              contentContainerStyle={[styles.cardContent, { paddingBottom: 10 + navSafeBottom }]}
+              contentContainerStyle={[styles.cardContent, { paddingBottom: 0 }]}
               nestedScrollEnabled
               scrollEnabled
               showsVerticalScrollIndicator={false}
             >
+              {/* only the route rows are inside scrollable area */}
+            </ScrollView>
 
-          <Pressable style={styles.floorGuideButton}>
-            <Text style={styles.floorGuideText}>{floorGuide}</Text>
+          <Pressable style={styles.floorGuideButton} onPress={() => setShowGuideModal(true)}>
+            <Text style={styles.floorGuideText}>Click to view navigation guide</Text>
           </Pressable>
+
+          <Modal
+            visible={showGuideModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowGuideModal(false)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Navigation Guide</Text>
+                {guideSteps.map((step, index) => (
+                  <View key={index} style={styles.guideRow}>
+                    <Text style={styles.guideStep}>{step}</Text>
+                    {index < guideSteps.length - 1 && (
+                      <Ionicons
+                        name="chevron-down"
+                        size={20}
+                        color="#0b489d"
+                        style={styles.guideArrow}
+                      />
+                    )}
+                  </View>
+                ))}
+                <Pressable
+                  style={[styles.modalPrimary, { marginTop: 12 }]}
+                  onPress={() => setShowGuideModal(false)}
+                >
+                  <Text style={styles.modalPrimaryText}>Close</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
 
           <Pressable style={styles.completeButton} onPress={() => setShowCompleteModal(true)}>
             <Text style={styles.completeButtonText}>Complete Navigation</Text>
           </Pressable>
 
-          <Pressable style={styles.lostButton} onPress={goToScanQr}>
-            <Text style={styles.lostButtonText}>Lost? Scan Nearest QR Code</Text>
-          </Pressable>
-            </ScrollView>
           </View>
-        </Animated.View>
+        </View>
       </View>
 
       <Modal
@@ -301,7 +306,20 @@ export default function NavigationScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+            {/* floating lost icon */}
+        {showLostToast && (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>Lost? Scan nearest QR Code</Text>
+          </View>
+        )}
+        <Animated.View style={[styles.floatingButton, { transform: [{ scale: buttonScale }] }]}>
+          <LinearGradient colors={["#002A7A", "#1565C0"]} style={styles.floatingButton} >
+            <Pressable onPress={goToScanQr}>
+              <Ionicons name="scan" size={35} color="#ffffff" />
+            </Pressable>
+          </LinearGradient>
+        </Animated.View>
+      </SafeAreaView>
   );
 }
 
@@ -376,14 +394,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#ffffff",
-    zIndex: 10,
+    zIndex: 30, // above card wrapper so strip remains visible
   },
   bottomCard: {
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 30,
     paddingHorizontal: 16,
     paddingTop: 14,
+    paddingBottom: 20,
     flex: 1,
   },
   cardContent: {
@@ -391,14 +410,15 @@ const styles = StyleSheet.create({
   },
   extraContent: {
     flexGrow: 0,
+    // scrollable padding only applies to dynamic content above
   },
   handle: {
-    width: 40,
+    width: 50,
     height: 4,
     backgroundColor: "#c4c4c4",
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 8,
+    marginBottom: 15,
   },
   dragArea: {
     paddingBottom: 2,
@@ -430,10 +450,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconRed: {
-    width: 23,
-    height: 23,
+    width: 25,
+    height: 25,
     borderRadius: 14,
-    backgroundColor: "#cf1f2d",
+    backgroundColor: "none",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -492,10 +512,11 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   modalTitle: {
-    fontSize: 35,
+    fontSize: 25,
     fontWeight: "900",
     color: "#002A7A",
     textAlign: "center",
+    marginBottom: 14,
   },
   modalText: {
     fontSize: 18,
@@ -503,6 +524,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 10,
     marginBottom: 14,
+  },
+  guideStep: {
+    fontSize: 14,
+    color: "#31538f",
+    marginVertical: 4,
+    paddingHorizontal: 8,
+    textAlign: "center",
+  },
+  guideRow: {
+   alignItems: "center",
+  },
+  guideArrow: {
+    alignSelf: "center",
+    marginVertical: 2,
   },
   modalDestination: {
     flexDirection: "row",
@@ -540,5 +575,31 @@ const styles = StyleSheet.create({
     color: "#113e94",
     fontSize: 18,
     fontWeight: "800",
+  },
+  floatingButton: {
+    position: "absolute",
+    top: 95,
+    right: 12,
+    width: 65,
+    height: 65,
+    borderRadius: 50,
+    // backgroundColor removed; gradient will provide color
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 40,
+  },
+  toast: {
+    position: "absolute",
+    top: 208,
+    right: 100, // sit left of floating button
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 50,
+  },
+  toastText: {
+    color: "#ffffff",
+    fontSize: 14,
   },
 });

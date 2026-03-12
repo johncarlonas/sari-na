@@ -47,7 +47,6 @@
           "dark": { "backgroundColor": "#0b489d" }
         }
       ],
-      "@rnmapbox/maps",
       "expo-font"
     ],
     "experiments": {
