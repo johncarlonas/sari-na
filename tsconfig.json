@@ -2,10 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"], // ESNext includes Object.values and .find()
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
   "include": [

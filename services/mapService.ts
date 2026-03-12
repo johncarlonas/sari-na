@@ -1,18 +1,26 @@
-// services/mapService.ts
 import { MAP_DATA } from '../constants/mapData';
 import { Pathfinder } from './pathfinder';
+import { Building, Floor, MapNode, MapEdge } from '../types/mapTypes';
 
 export const MapService = {
-  // Main function to be called by the Frontend
-  calculateRoute: (startQrId: string, destinationRoomId: string) => {
-    const floor = mapData.buildings[0].floors[0]; // Assuming CCS Building Floor 1
-    const { nodes, edges } = floor.graph;
+  calculateRoute: (startId: string, endId: string) => {
+    const allNodes: MapNode[] = [];
+    const allEdges: MapEdge[] = [];
 
-    const pathIds = Pathfinder.getShortestPath(startQrId, destinationRoomId, nodes, edges);
+    // Flatten everything into one searchable graph
+    Object.values(MAP_DATA.buildings).forEach((b: Building) => {
+      b.floors.forEach((f: Floor) => {
+        allNodes.push(...f.nodes);
+        allEdges.push(...f.edges);
+      });
+      if (b.interFloorEdges) allEdges.push(...b.interFloorEdges);
+    });
+    allEdges.push(...MAP_DATA.interBuildingEdges);
 
+    const pathIds = Pathfinder.getShortestPath(startId, endId, allNodes, allEdges);
     if (!pathIds) return null;
 
-    // Convert IDs back to actual Coordinate objects for the Frontend to draw
-    return pathIds.map(id => nodes.find(n => n.id === id));
+    // Return full objects so the UI knows x, y, floor, and building
+    return pathIds.map(id => allNodes.find(n => n.id === id) as MapNode);
   }
 };
