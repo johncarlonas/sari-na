@@ -104,7 +104,16 @@ export default function HomeSearchScreen() {
 					{hasQuery && (
 						<View>
 							<Text style={styles.sectionTitle}>Search Results</Text>
-							{results.map((item) => (
+							{results.length === 0 ? (
+								<View style={styles.emptyWrap}>
+									<View style={styles.emptyIconCircle}>
+										<Ionicons name="close-circle" size={38} color="#2a80d8" />
+									</View>
+									<Text style={styles.emptyTitle}>No matches found</Text>
+									<Text style={styles.emptyText}>Try a different query</Text>
+								</View>
+							) : (
+								results.map((item) => (
 								<Pressable
 									key={item.id}
 									onPress={() =>
@@ -130,7 +139,7 @@ export default function HomeSearchScreen() {
 									</View>
 									<Ionicons name="chevron-forward" size={22} color="#9ab0d6" />
 								</Pressable>
-							))}
+							)))}
 						</View>
 					)}
 			</ScrollView>
