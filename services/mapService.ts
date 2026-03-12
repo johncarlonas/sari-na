@@ -1,5 +1,5 @@
 // services/mapService.ts
-import mapData from '../constants/mapData.json';
+import { MAP_DATA } from '../constants/mapData';
 import { Pathfinder } from './pathfinder';
 
 export const MapService = {
