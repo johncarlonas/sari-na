@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, Animated, ScrollView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -12,6 +13,17 @@ type Params = {
 
 export default function ArrivalScreen() {
   const router = useRouter();
+  const bounce = useRef(new Animated.Value(0)).current;
+  const [feedback, setFeedback] = useState<"up"|"down"|null>(null);
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounce, { toValue: -10, duration: 500, useNativeDriver: false }),
+        Animated.timing(bounce, { toValue: 0, duration: 500, useNativeDriver: false }),
+      ])
+    ).start();
+  }, []);
   const params = useLocalSearchParams<Params>();
 
   const location = typeof params.location === "string" ? params.location : "CCS Faculty Lounge";
@@ -24,10 +36,16 @@ export default function ArrivalScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <View style={styles.checkCircle}>
-          <Ionicons name="checkmark" size={60} color="#26B376" />
-        </View>
+      <ScrollView style={{flex:1}} contentContainerStyle={styles.content}>
+        <Animated.View style={[styles.checkCircle, {
+            transform: [{ translateY: bounce }],
+            shadowOffset: { width: 0, height: bounce.interpolate({ inputRange: [-10, 0], outputRange: [10, 2] }) },
+            shadowOpacity: 0.3,
+            shadowRadius: bounce.interpolate({ inputRange: [-10, 0], outputRange: [10, 2] }),
+          }]}
+        >
+          <Ionicons name="checkmark-sharp" size={72} color="#26B376" />
+        </Animated.View>
 
         <Text style={styles.title}>Arrival Confirmed!</Text>
         <Text style={styles.subtitle}>You have successfully reached your destination</Text>
@@ -35,7 +53,7 @@ export default function ArrivalScreen() {
         <View style={styles.destinationCard}>
           <View style={styles.destinationRow}>
             <View style={styles.iconWrap}>
-              <Ionicons name="location-outline" size={18} color="#ffffff" />
+              <Ionicons name="location" size={20} color="#ffffff" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.destinationTitle}>{location}</Text>
@@ -45,7 +63,7 @@ export default function ArrivalScreen() {
 
           <View style={styles.officeHoursCard}>
             <View style={styles.officeHoursRow}>
-              <Ionicons name="time-outline" size={16} color="#00348f" />
+              <Ionicons name="time-outline" size={16} color="#0b489d" />
               <Text style={styles.officeHoursTitle}>Office Hours</Text>
             </View>
             <Text style={styles.officeHoursText}>Monday - Friday: 8:00 AM - 5:00 PM</Text>
@@ -53,7 +71,10 @@ export default function ArrivalScreen() {
           </View>
         </View>
 
-        <View style={styles.summaryCard}>
+        <LinearGradient
+          colors={["#FF8C5A", "#FF6B35"]}
+          style={styles.summaryCard}
+        >
           <Text style={styles.summaryTitle}>Journey Summary</Text>
 
           <View style={styles.summaryRow}>
@@ -72,23 +93,40 @@ export default function ArrivalScreen() {
             <Text style={styles.summaryLabel}>Estimated Time:</Text>
             <Text style={styles.summaryValue}>~5 minutes</Text>
           </View>
-        </View>
+        </LinearGradient>
 
-        <Pressable style={styles.homeButton} onPress={() => router.replace("/user/home") }>
-          <Ionicons name="home" size={18} color="#002A7A" />
-          <Text style={styles.homeButtonText}>Return to Home</Text>
-        </Pressable>
+        <LinearGradient
+          colors={["#1565C0", "#002A7A"]}
+          style={styles.homeWrapper}
+        >
+          <Pressable style={styles.homeButton} onPress={() => router.replace("/user/home") }>
+            <Ionicons name="home" size={16} color="#ffffff" style={{marginTop:10}} />
+            <Text style={[styles.homeButtonText,{marginTop:10}]}>Return to Home</Text>
+          </Pressable>
+        </LinearGradient>
 
         <Text style={styles.feedbackText}>How was your navigation experience?</Text>
         <View style={styles.feedbackRow}>
-          <Pressable style={styles.feedbackButton}>
-            <Ionicons name="thumbs-up" size={20} color="#ffffff" />
+          <Pressable
+            style={[
+              styles.feedbackButton,
+              feedback === 'up' && styles.feedbackSelected,
+            ]}
+            onPress={() => setFeedback(feedback === 'up' ? null : 'up')}
+          >
+            <Ionicons name="thumbs-up" size={20} color={feedback === 'up' ? '#ffffff' : '#0b489d'} />
           </Pressable>
-          <Pressable style={styles.feedbackButton}>
-            <Ionicons name="thumbs-down" size={20} color="#ffffff" />
+          <Pressable
+            style={[
+              styles.feedbackButton,
+              feedback === 'down' && styles.feedbackSelected,
+            ]}
+            onPress={() => setFeedback(feedback === 'down' ? null : 'down')}
+          >
+            <Ionicons name="thumbs-down" size={20} color={feedback === 'down' ? '#ffffff' : '#0b489d'} />
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -96,41 +134,44 @@ export default function ArrivalScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#00369e",
+    backgroundColor: "#edf2f8",
   },
   content: {
-    flex: 1,
-    paddingTop: 120, // account for navbar height
+    flexGrow: 1,
+    paddingTop: 120,
+    paddingBottom: 30,
     paddingHorizontal: 18,
   },
   checkCircle: {
     alignSelf: "center",
-    width: 126,
-    height: 126,
-    borderRadius: 63,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
+    marginBottom: 14,
   },
   title: {
-    color: "#ffffff",
+    color: "#002A7A",
     textAlign: "center",
-    fontSize: 39,
+    fontSize: 27,
     fontWeight: "900",
   },
   subtitle: {
-    color: "#e3eeff",
+    color: "#6b84b7",
     textAlign: "center",
-    marginTop: 6,
-    fontSize: 20,
-    marginBottom: 16,
+    marginTop: 4,
+    fontSize: 15,
+    marginBottom: 12,
   },
   destinationCard: {
-    backgroundColor: "#f4f8ff",
+    backgroundColor: "#ffffff",
     borderRadius: 18,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#0b489d",
   },
   destinationRow: {
     flexDirection: "row",
@@ -140,19 +181,19 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#2583de",
+    backgroundColor: "#0b489d",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
   destinationTitle: {
     color: "#002A7A",
-    fontSize: 30,
+    fontSize: 18,
     fontWeight: "900",
   },
   destinationDetail: {
-    color: "#5a78ac",
-    fontSize: 19,
+    color: "#6b84b7",
+    fontSize: 14,
     marginTop: 2,
   },
   officeHoursCard: {
@@ -170,29 +211,30 @@ const styles = StyleSheet.create({
   },
   officeHoursTitle: {
     marginLeft: 6,
-    color: "#00348f",
-    fontSize: 20,
+    color: "#002A7A",
+    fontSize: 16,
     fontWeight: "800",
   },
   officeHoursText: {
-    color: "#365e9f",
-    fontSize: 18,
+    color: "#6b84b7",
+    fontSize: 14,
     marginLeft: 22,
     marginBottom: 2,
   },
   summaryCard: {
-    backgroundColor: "#2a58ad",
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#4f77bf",
-    padding: 14,
+    padding: 12,
     marginBottom: 14,
+    shadowColor: "#FF6B35",
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
   },
   summaryTitle: {
     color: "#ffffff",
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: "800",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   summaryRow: {
     flexDirection: "row",
@@ -201,35 +243,46 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   summaryLabel: {
-    color: "#d9e6ff",
-    fontSize: 18,
+    color: "#fce8de",
+    fontSize: 13,
   },
   summaryValue: {
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: "700",
-    marginLeft: 12,
+    marginLeft: 8,
   },
   homeButton: {
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#ffffff",
+    height: 35,
+    borderRadius: 30,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
+    gap: 6,
+    marginBottom: 10,
   },
   homeButtonText: {
-    color: "#002A7A",
+    color: "#ffffff",
     fontSize: 18,
     fontWeight: "800",
   },
+  homeTextMargin: {
+    marginTop: 10,
+  },  
+  
   feedbackText: {
-    color: "#dbe8ff",
+    color: "#6b84b7",
     textAlign: "center",
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: 10,
+    marginTop: 30,
+  },
+  homeWrapper: {
+    borderRadius: 24,
+    padding: 2,
+    alignSelf: "stretch",
+    marginBottom: 14,
   },
   feedbackRow: {
     flexDirection: "row",
@@ -237,11 +290,16 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   feedbackButton: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: "#4b74bc",
+    borderWidth: 1,
+    borderColor: "#0b489d",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
+  feedbackSelected: {
+    backgroundColor: "#0b489d",
+  }
 });

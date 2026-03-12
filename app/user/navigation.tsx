@@ -32,8 +32,8 @@ export default function NavigationScreen() {
   const params = useLocalSearchParams<Params>();
   const insets = useSafeAreaInsets();
   const navSafeBottom = Math.max(insets.bottom, 14);
-  const CARD_COLLAPSED_HEIGHT = 260 + navSafeBottom; // reduced now that scan button removed
-  // fixed height, no collapse behaviour
+  const CARD_COLLAPSED_HEIGHT = 260 + navSafeBottom; 
+ 
 
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -46,8 +46,6 @@ export default function NavigationScreen() {
   const [liveOriginCoords, setLiveOriginCoords] = useState<LngLat>(DEFAULT_CAMPUS_CENTER);
   const allPlaces = places as Place[];
 
-  // Map rendering is done by MapBoxView (now using react-native-maps/OSM);
-  // it also tracks GPS and reports back via onLocationStatusChange.
 
   const location = typeof params.location === "string" ? params.location : "Selected location";
   const detail = typeof params.detail === "string" ? params.detail : "";
@@ -195,7 +193,6 @@ export default function NavigationScreen() {
         >
           <View style={styles.bottomCard}>
             <View style={styles.dragArea}>
-              {/* drag handle (panResponder attached to top area) */}
               <View style={styles.handle} />
               <View style={styles.routeRow}>
               <View style={styles.iconBlue}>
@@ -225,21 +222,25 @@ export default function NavigationScreen() {
               scrollEnabled
               showsVerticalScrollIndicator={false}
             >
-              {/* only the route rows are inside scrollable area */}
             </ScrollView>
 
-          <Pressable style={styles.floorGuideButton} onPress={() => setShowGuideModal(true)}>
-            <Text style={styles.floorGuideText}>Click to view navigation guide</Text>
-          </Pressable>
+          <LinearGradient
+            colors={["#1565C0", "#002A7A"]}
+            style={styles.googleWrapper}
+          >
+            <Pressable style={styles.googleButton} onPress={() => setShowGuideModal(true)}>
+              <Text style={styles.googleText}>Click to view navigation guide</Text>
+            </Pressable>
+          </LinearGradient>
 
           <Modal
             visible={showGuideModal}
             transparent
-            animationType="slide"
+            animationType="fade"
             onRequestClose={() => setShowGuideModal(false)}
           >
-            <View style={styles.modalBackdrop}>
-              <View style={styles.modalCard}>
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowGuideModal(false)}>
+              <View style={styles.modalCard} pointerEvents="box-none">
                 <Text style={styles.modalTitle}>Navigation Guide</Text>
                 {guideSteps.map((step, index) => (
                   <View key={index} style={styles.guideRow}>
@@ -258,14 +259,28 @@ export default function NavigationScreen() {
                   style={[styles.modalPrimary, { marginTop: 12 }]}
                   onPress={() => setShowGuideModal(false)}
                 >
-                  <Text style={styles.modalPrimaryText}>Close</Text>
+                  <LinearGradient
+                    colors={["#1565C0", "#002A7A"]}
+                    // start={{ x: 0, y: 0 }}
+                    // end={{ x: 1, y: 0 }}
+                    style={styles.modalPrimaryGradient}
+                  >
+                    <Text style={styles.modalPrimaryText}>Close</Text>
+                  </LinearGradient>
                 </Pressable>
               </View>
-            </View>
+            </Pressable>
           </Modal>
 
           <Pressable style={styles.completeButton} onPress={() => setShowCompleteModal(true)}>
-            <Text style={styles.completeButtonText}>Complete Navigation</Text>
+            <LinearGradient
+              colors={["#1565C0", "#002A7A"]}
+              // start={{ x: 0, y: 0 }}
+              // end={{ x: 1, y: 0 }}
+              style={styles.completeButtonGradient}
+            >
+              <Text style={styles.completeButtonText}>Complete Navigation</Text>
+            </LinearGradient>
           </Pressable>
 
           </View>
@@ -278,8 +293,8 @@ export default function NavigationScreen() {
         animationType="fade"
         onRequestClose={() => setShowCompleteModal(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowCompleteModal(false)}>
+          <View style={styles.modalCard} pointerEvents="box-none">
             <Text style={styles.modalTitle}>Arrival Confirmation</Text>
             <Text style={styles.modalText}>
               To confirm your arrival, please scan the QR code at the destination or skip this
@@ -288,7 +303,7 @@ export default function NavigationScreen() {
 
             <View style={styles.modalDestination}>
               <View style={styles.iconRed}>
-                <Ionicons name="location-outline" size={14} color="#ffffff" />
+                <Ionicons name="location" size={25} color="#cf1f2d" />
               </View>
               <View style={styles.routeTextWrap}>
                 <Text style={styles.routeTitle}>{destinationTitle}</Text>
@@ -296,15 +311,27 @@ export default function NavigationScreen() {
               </View>
             </View>
 
-            <Pressable style={styles.modalPrimary} onPress={goToScanQr}>
-              <Text style={styles.modalPrimaryText}>Scan QR Code</Text>
+            <Pressable style={[styles.modalPrimary, { marginTop: 12 }]} onPress={goToScanQr}>
+              <LinearGradient
+                colors={["#1565C0", "#002A7A"]}
+                // start={{ x: 0, y: 0 }}
+                // end={{ x: 1, y: 0 }}
+                style={styles.modalPrimaryGradient}
+              >
+                <Text style={styles.modalPrimaryText}>Scan QR Code</Text>
+              </LinearGradient>
             </Pressable>
 
-            <Pressable style={styles.modalSecondary} onPress={goToArrival}>
-              <Text style={styles.modalSecondaryText}>Skip</Text>
-            </Pressable>
+            <LinearGradient
+              colors={["#1565C0", "#002A7A"]}
+              style={styles.skipWrapper}
+            >
+              <Pressable style={styles.modalSecondary} onPress={goToArrival}>
+                <Text style={styles.modalSecondaryText}>Skip</Text>
+              </Pressable>
+            </LinearGradient>
           </View>
-        </View>
+        </Pressable>
       </Modal>
             {/* floating lost icon */}
         {showLostToast && (
@@ -334,7 +361,7 @@ const styles = StyleSheet.create({
   backButton: {
     position: "absolute",
     top: 105,
-    left: 16,
+    left: 5,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
@@ -457,33 +484,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  floorGuideButton: {
-    height: 46,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: "#2f68be",
-    backgroundColor: "#dfe7f5",
+  // reuse same styles as the login/signup screen google button
+  googleText: {
+    color: "#002A7A",
+    fontSize: 18,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  googleWrapper: {
+    borderRadius: 27,
+    padding: 3,
+    alignSelf: "stretch",
+    marginTop: 5,
+  },
+  googleButton: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
-  },
-  floorGuideText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0e3d93",
+    backgroundColor: "#ffffff",
+    borderRadius: 27,
+    height: 45,
+    paddingHorizontal: 15,
   },
   completeButton: {
     marginTop: 10,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#002A7A",
+    height: 50,
+    borderRadius: 30,
+    overflow: "hidden",
+  },
+  completeButtonGradient: {
+    flex: 1,
+    borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
   },
   completeButtonText: {
-    fontSize: 18,
-    fontWeight: "800",
     color: "#ffffff",
+    fontSize: 20,
+    fontWeight: "800",
   },
   lostButton: {
     marginTop: 8,
@@ -519,7 +557,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   modalText: {
-    fontSize: 18,
+    fontSize: 14,
     color: "#31538f",
     textAlign: "center",
     marginTop: 10,
@@ -547,15 +585,28 @@ const styles = StyleSheet.create({
     borderColor: "#cfe0f9",
     padding: 12,
     backgroundColor: "#eaf1fc",
-    marginBottom: 14,
+    marginBottom: 5,
   },
   modalPrimary: {
-    height: 46,
+    height: 50, 
     borderRadius: 13,
-    backgroundColor: "#0038a3",
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+  },
+  modalPrimaryGradient: {
+    flex: 1,
+    borderRadius: 30,
+    overflow: "hidden",
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  skipWrapper: {
+    borderRadius: 30,
+    padding: 2,
+    alignSelf: "stretch",
+    marginTop: 10,
   },
   modalPrimaryText: {
     fontSize: 18,
@@ -564,9 +615,9 @@ const styles = StyleSheet.create({
   },
   modalSecondary: {
     height: 46,
-    borderRadius: 13,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: "#c9d8f1",
+    borderColor: "transparent", // gradient wrapper provides visible border
     backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
@@ -579,11 +630,10 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: "absolute",
     top: 95,
-    right: 12,
+    right: 10,
     width: 65,
     height: 65,
     borderRadius: 50,
-    // backgroundColor removed; gradient will provide color
     alignItems: "center",
     justifyContent: "center",
     zIndex: 40,
@@ -591,7 +641,7 @@ const styles = StyleSheet.create({
   toast: {
     position: "absolute",
     top: 208,
-    right: 100, // sit left of floating button
+    right: 100, 
     backgroundColor: "rgba(0,0,0,0.7)",
     paddingHorizontal: 12,
     paddingVertical: 6,
