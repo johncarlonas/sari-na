@@ -1,76 +1,69 @@
-// services/pathfinder.ts
+import { MapNode, MapEdge } from '../types/mapTypes';
 
-export interface Node {
-  id: string;
-  x: number;
-  y: number;
-  label: string;
-}
+export const Pathfinder = {
+  // This is the "Compass" (Heuristic)
+  // It estimates the distance between two nodes using the Pythagorean theorem
+  getHeuristic: (nodeA: MapNode, nodeB: MapNode): number => {
+    // If they are in different buildings, the guess is harder, so we return a flat value
+    if (nodeA.buildingId !== nodeB.buildingId) return 1000;
 
-export interface Edge {
-  from: string;
-  to: string;
-  weight: number;
-}
+    // If in the same building, we use the x,y coordinates
+    const dx = nodeA.x - nodeB.x;
+    const dy = nodeA.y - nodeB.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  },
 
-export class Pathfinder {
-  // A* Implementation: Finds the shortest array of Node IDs
-  static getShortestPath(startId: string, endId: string, nodes: Node[], edges: Edge[]): string[] | null {
-    let openSet = [startId];
-    let cameFrom: Record<string, string> = {};
-    let gScore: Record<string, number> = {}; 
-    let fScore: Record<string, number> = {};
+  getShortestPath: (startId: string, endId: string, nodes: MapNode[], edges: MapEdge[]): string[] | null => {
+    const startNode = nodes.find(n => n.id === startId);
+    const endNode = nodes.find(n => n.id === endId);
+    if (!startNode || !endNode) return null;
 
-    nodes.forEach(n => {
-      gScore[n.id] = Infinity;
-      fScore[n.id] = Infinity;
+    const gScore: { [key: string]: number } = {}; // Actual distance from start
+    const fScore: { [key: string]: number } = {}; // Estimated total distance (g + h)
+    const previous: { [key: string]: string | null } = {};
+    let openSet: string[] = [startId];
+
+    nodes.forEach(node => {
+      gScore[node.id] = Infinity;
+      fScore[node.id] = Infinity;
+      previous[node.id] = null;
     });
 
     gScore[startId] = 0;
-    fScore[startId] = this.heuristic(startId, endId, nodes);
+    fScore[startId] = Pathfinder.getHeuristic(startNode, endNode);
 
     while (openSet.length > 0) {
-      // Find node in openSet with lowest fScore
-      let current = openSet.reduce((a, b) => fScore[a] < fScore[b] ? a : b);
+      // Sort by fScore (the guess) instead of gScore (the actual)
+      openSet.sort((a, b) => fScore[a] - fScore[b]);
+      const currentId = openSet.shift()!;
 
-      if (current === endId) return this.reconstructPath(cameFrom, current);
+      if (currentId === endId) break;
 
-      openSet = openSet.filter(id => id !== current);
+      const neighbors = edges.filter(e => e.from === currentId);
+      for (const edge of neighbors) {
+        const tentativeGScore = gScore[currentId] + edge.weight;
 
-      const neighbors = this.getNeighbors(current, edges);
-      for (let neighbor of neighbors) {
-        let edge = edges.find(e => (e.from === current && e.to === neighbor) || (e.from === neighbor && e.to === current));
-        let tentativeGScore = gScore[current] + (edge?.weight || 0);
+        if (tentativeGScore < gScore[edge.to]) {
+          previous[edge.to] = currentId;
+          gScore[edge.to] = tentativeGScore;
+          
+          const neighborNode = nodes.find(n => n.id === edge.to)!;
+          fScore[edge.to] = gScore[edge.to] + Pathfinder.getHeuristic(neighborNode, endNode);
 
-        if (tentativeGScore < gScore[neighbor]) {
-          cameFrom[neighbor] = current;
-          gScore[neighbor] = tentativeGScore;
-          fScore[neighbor] = gScore[neighbor] + this.heuristic(neighbor, endId, nodes);
-          if (!openSet.includes(neighbor)) openSet.push(neighbor);
+          if (!openSet.includes(edge.to)) {
+            openSet.push(edge.to);
+          }
         }
       }
     }
-    return null;
-  }
 
-  private static heuristic(idA: string, idB: string, nodes: Node[]): number {
-    const a = nodes.find(n => n.id === idA)!;
-    const b = nodes.find(n => n.id === idB)!;
-    return Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
-  }
-
-  private static getNeighbors(nodeId: string, edges: Edge[]): string[] {
-    return edges
-      .filter(e => e.from === nodeId || e.to === nodeId)
-      .map(e => e.from === nodeId ? e.to : e.from);
-  }
-
-  private static reconstructPath(cameFrom: Record<string, string>, current: string): string[] {
-    let path = [current];
-    while (current in cameFrom) {
-      current = cameFrom[current];
-      path.unshift(current);
+    // Path reconstruction remains the same
+    const path: string[] = [];
+    let curr: string | null = endId;
+    while (curr) {
+      path.unshift(curr);
+      curr = previous[curr];
     }
-    return path;
+    return path[0] === startId ? path : null;
   }
-}
+};
