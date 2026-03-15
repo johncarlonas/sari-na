@@ -9,6 +9,8 @@ type Params = {
   location?: string;
   detail?: string;
   placeId?: string;
+  startLocation?: string;
+  buildingsCrossed?: string;
 };
 
 export default function ArrivalScreen() {
@@ -28,6 +30,8 @@ export default function ArrivalScreen() {
 
   const location = typeof params.location === "string" ? params.location : "CCS Faculty Lounge";
   const detail = typeof params.detail === "string" ? params.detail : "Academic Building IV, Floor 2";
+  const startLocation = typeof params.startLocation === "string" ? params.startLocation : "Scanned QR";
+  const buildingsCrossed = typeof params.buildingsCrossed === "string" ? params.buildingsCrossed : "1";
 
   useEffect(() => {
     // persist new current location globally so home picks it up even after navigating away
@@ -84,15 +88,15 @@ export default function ArrivalScreen() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Starting Point:</Text>
-            <Text style={styles.summaryValue}>Room 2, Academic Building IV</Text>
+            <Text style={styles.summaryValue}>{startLocation}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Destination:</Text>
             <Text style={styles.summaryValue}>{destinationFloor}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Building Crossed:</Text>
-            <Text style={styles.summaryValue}>1</Text>
+            <Text style={styles.summaryLabel}>Building(s) Crossed:</Text>
+            <Text style={styles.summaryValue}>{buildingsCrossed}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Estimated Time:</Text>

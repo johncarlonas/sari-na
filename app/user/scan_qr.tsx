@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, StyleSheet, Pressable, Animated, Easing } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
+import { findCheckpointByPayload, type QrCheckpoint } from "../../constants/qrCheckpoints";
 
 type Params = {
   mode?: string;
@@ -26,9 +27,12 @@ export default function ScanQrScreen() {
   const params = useLocalSearchParams<Params>();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [statusBanner, setStatusBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [screenRect, setScreenRect] = useState<Rect | null>(null);
   const [frameRect, setFrameRect] = useState<Rect | null>(null);
   const scanLineAnim = React.useRef(new Animated.Value(0)).current;
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!permission?.granted) {
@@ -58,14 +62,44 @@ export default function ScanQrScreen() {
     };
   }, [scanned, scanLineAnim]);
 
-  const onScanSuccess = () => {
+  useEffect(() => {
+    return () => {
+      if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+      if (navigateTimeoutRef.current) clearTimeout(navigateTimeoutRef.current);
+    };
+  }, []);
+
+  const showBanner = (type: "success" | "error", message: string, duration = 2200) => {
+    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+    setStatusBanner({ type, message });
+    if (duration > 0) {
+      bannerTimeoutRef.current = setTimeout(() => setStatusBanner(null), duration);
+    }
+  };
+
+  const persistCheckpoint = (checkpoint: QrCheckpoint | null) => {
+    if (!checkpoint) return;
+    try {
+      (global as any).currentCheckpoint = checkpoint;
+      (global as any).currentNodeId = checkpoint.nodeId;
+      (global as any).currentLocation = {
+        location: checkpoint.location,
+        detail: checkpoint.detail,
+      };
+    } catch {}
+  };
+
+  const onScanSuccess = (checkpoint: QrCheckpoint | null) => {
     const mode = typeof params.mode === "string" ? params.mode : "";
-    const location = typeof params.location === "string" ? params.location : "Room 1";
+    const location =
+      checkpoint?.location ?? (typeof params.location === "string" ? params.location : "Room 1");
     const detail =
-      typeof params.detail === "string"
+      checkpoint?.detail ??
+      (typeof params.detail === "string"
         ? params.detail
-        : "Academic Building IV (College of Computer Studies)";
-    const placeId = typeof params.placeId === "string" ? params.placeId : "";
+        : "Academic Building IV (College of Computer Studies)");
+    const placeId =
+      checkpoint?.nodeId ?? (typeof params.placeId === "string" ? params.placeId : "");
 
     if (mode === "arrival") {
       router.replace({
@@ -74,6 +108,18 @@ export default function ScanQrScreen() {
           location,
           detail,
           placeId,
+        },
+      });
+      return;
+    }
+
+    if (mode === "navigation") {
+      router.replace({
+        pathname: "/user/navigation",
+        params: {
+          location: typeof params.location === "string" ? params.location : location,
+          detail: typeof params.detail === "string" ? params.detail : detail,
+          placeId: typeof params.placeId === "string" ? params.placeId : placeId,
         },
       });
       return;
@@ -121,12 +167,42 @@ export default function ScanQrScreen() {
     );
   };
 
+  const handleCheckpointScan = (checkpoint: QrCheckpoint) => {
+    const mode = typeof params.mode === "string" ? params.mode : "";
+    const expectedPlaceId = typeof params.placeId === "string" ? params.placeId : "";
+    const shouldValidateDestination = mode === "arrival" && expectedPlaceId.length > 0;
+    const isDestinationMatch = expectedPlaceId.length > 0 && checkpoint.nodeId === expectedPlaceId;
+
+    if (shouldValidateDestination && !isDestinationMatch) {
+      showBanner("error", "This QR doesn't match the destination you're confirming.");
+      return;
+    }
+
+    persistCheckpoint(checkpoint);
+
+    if (shouldValidateDestination && isDestinationMatch) {
+      setScanned(true);
+      showBanner("success", "Destination reached!");
+      navigateTimeoutRef.current = setTimeout(() => onScanSuccess(checkpoint), 650);
+      return;
+    }
+
+    setScanned(true);
+    onScanSuccess(checkpoint);
+  };
+
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
     if (scanned) return;
     const center = getBarcodeCenter(result);
     if (center && !isInsideFrame(center)) return;
-    setScanned(true);
-    onScanSuccess();
+    const payload = typeof result.data === "string" ? result.data : "";
+    const checkpoint = findCheckpointByPayload(payload);
+
+    // Only proceed if the QR code matches a known SARI NA checkpoint.
+    // Unknown QR codes are silently ignored so the camera keeps scanning.
+    if (!checkpoint) return;
+
+    handleCheckpointScan(checkpoint);
   };
 
   if (!permission) {
@@ -331,6 +407,30 @@ export default function ScanQrScreen() {
           <Text style={[styles.cardSub, { color: '#002A7A' }]}>QR codes are located at room entrances and hallway pillars</Text>
         </View>
       </View>
+
+      {statusBanner && (
+        <View
+          style={[
+            styles.statusBanner,
+            statusBanner.type === "success" ? styles.statusBannerSuccess : styles.statusBannerError,
+          ]}
+        >
+          <Ionicons
+            name={statusBanner.type === "success" ? "checkmark-circle" : "alert-circle"}
+            size={18}
+            color={statusBanner.type === "success" ? "#0f5132" : "#842029"}
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.statusBannerText,
+              { color: statusBanner.type === "success" ? "#0f5132" : "#842029" },
+            ]}
+          >
+            {statusBanner.message}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -515,5 +615,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
     textAlign: "center",
+  },
+  statusBanner: {
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    right: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusBannerSuccess: {
+    backgroundColor: "#d1e7dd",
+    borderWidth: 1,
+    borderColor: "#a3cfbb",
+  },
+  statusBannerError: {
+    backgroundColor: "#f8d7da",
+    borderWidth: 1,
+    borderColor: "#f5c2c7",
+  },
+  statusBannerText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

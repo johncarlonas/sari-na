@@ -26,6 +26,7 @@ export const MAP_DATA: UniversityMap = {
             { id: "ccs_f1_r2", type: "room", label: "Room 2", instruction: "Enter Room 2.", x: 600, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_r4", type: "room", label: "Room 4", instruction: "Enter Room 4.", x: 700, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_r5", type: "room", label: "Room 5", instruction: "Enter Room 5.", x: 750, y: 500, floor: 1, buildingId: "ccs" },
+            { id: "ccs_f1_portal_annex", type: "entrance", label: "Annex Walkway", instruction: "Exit CCS through the annex walkway portal.", x: 820, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_stairs_e", type: "stairs", label: "East Stairs", instruction: "Stairs near Men's CR.", x: 800, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_mcr", type: "room", label: "Men's CR", instruction: "Men's CR is at the far right.", x: 900, y: 500, floor: 1, buildingId: "ccs" },
           ],
@@ -37,7 +38,8 @@ export const MAP_DATA: UniversityMap = {
             ...bi("ccs_f1_canteen", "ccs_f1_r2", 10),
             ...bi("ccs_f1_r2", "ccs_f1_r4", 10),
             ...bi("ccs_f1_r4", "ccs_f1_r5", 10),
-            ...bi("ccs_f1_r5", "ccs_f1_stairs_e", 10),
+            ...bi("ccs_f1_r5", "ccs_f1_portal_annex", 8),
+            ...bi("ccs_f1_portal_annex", "ccs_f1_stairs_e", 8),
             ...bi("ccs_f1_stairs_e", "ccs_f1_mcr", 10),
           ]
         },
@@ -132,20 +134,26 @@ export const MAP_DATA: UniversityMap = {
         ...bi("ccs_f3_stairs_e", "ccs_f4_stairs_e", 50),
       ]
     },
-    // Placeholder for CHS building
-// ... (inside the buildings object)
-    chs: {
-      id: "chs",
-      name: "College of Health Sciences",
+    annex: {
+      id: "annex",
+      name: "Annex Building",
       floors: [
         {
           level: 1,
           nodes: [
-            { id: "chs_f1_ent", type: "entrance", label: "CHS Entrance", instruction: "Enter the CHS Building.", x: 500, y: 900, floor: 1, buildingId: "chs", lat: 13.4150, lng: 123.4150 },
-            { id: "chs_f1_lab1", type: "room", label: "Nursing Lab", instruction: "The Nursing Lab is on your right.", x: 500, y: 500, floor: 1, buildingId: "chs" }
+            { id: "annex_f1_entrance", type: "entrance", label: "Annex Entrance", instruction: "Enter the Annex building lobby.", x: 200, y: 520, floor: 1, buildingId: "annex", lat: 13.40512, lng: 123.37795 },
+            { id: "annex_f1_hall_a", type: "path", label: "Hallway A", instruction: "Walk through the west hallway.", x: 320, y: 520, floor: 1, buildingId: "annex" },
+            { id: "annex_f1_hall_b", type: "path", label: "Hallway B", instruction: "Continue down the main hallway.", x: 460, y: 520, floor: 1, buildingId: "annex" },
+            { id: "annex_f1_room101", type: "room", label: "Annex Room 101", instruction: "You are beside Annex Room 101.", x: 520, y: 460, floor: 1, buildingId: "annex", lat: 13.40524, lng: 123.37812 },
+            { id: "annex_f1_room102", type: "room", label: "Annex Room 102", instruction: "Annex Room 102 is on the right.", x: 520, y: 580, floor: 1, buildingId: "annex" },
+            { id: "annex_f1_portal_ccs", type: "entrance", label: "CCS Portal", instruction: "Follow the walkway back to CCS.", x: 620, y: 520, floor: 1, buildingId: "annex", lat: 13.4053, lng: 123.37825 }
           ],
           edges: [
-            ...bi("chs_f1_ent", "chs_f1_lab1", 20)
+            ...bi("annex_f1_entrance", "annex_f1_hall_a", 12),
+            ...bi("annex_f1_hall_a", "annex_f1_hall_b", 10),
+            ...bi("annex_f1_hall_b", "annex_f1_room101", 8),
+            ...bi("annex_f1_hall_b", "annex_f1_room102", 8),
+            ...bi("annex_f1_hall_b", "annex_f1_portal_ccs", 10)
           ]
         }
       ],
@@ -155,8 +163,7 @@ export const MAP_DATA: UniversityMap = {
 
   // THIS IS THE BRIDGE
   interBuildingEdges: [
-    // We connect the CCS Canteen to the CHS Entrance
-    // We give it a high weight (1000) because it's a long outdoor walk
-    ...bi("ccs_f1_canteen", "chs_f1_ent", 1000)
+    // Portal walkway between CCS and Annex (represents outdoor travel)
+    ...bi("ccs_f1_portal_annex", "annex_f1_portal_ccs", 220)
   ]
 };

@@ -2,12 +2,15 @@ import { MapNode, MapEdge } from '../types/mapTypes';
 
 export const Pathfinder = {
   // This is the "Compass" (Heuristic)
-  // It estimates the distance between two nodes using the Pythagorean theorem
+  // It estimates the distance between two nodes using the Pythagorean theorem.
+  // IMPORTANT: The value must be ADMISSIBLE (never overestimate the real cost)
+  // so that A* is guaranteed to find the optimal path.
   getHeuristic: (nodeA: MapNode, nodeB: MapNode): number => {
-    // If they are in different buildings, the guess is harder, so we return a flat value
-    if (nodeA.buildingId !== nodeB.buildingId) return 1000;
+    // If they are in different buildings, use a conservative flat estimate.
+    // The shortest inter-building edge is 220, so 200 keeps the heuristic admissible.
+    if (nodeA.buildingId !== nodeB.buildingId) return 200;
 
-    // If in the same building, we use the x,y coordinates
+    // If in the same building, we use the x,y coordinates (Euclidean distance)
     const dx = nodeA.x - nodeB.x;
     const dy = nodeA.y - nodeB.y;
     return Math.sqrt(dx * dx + dy * dy);
@@ -22,6 +25,7 @@ export const Pathfinder = {
     const fScore: { [key: string]: number } = {}; // Estimated total distance (g + h)
     const previous: { [key: string]: string | null } = {};
     let openSet: string[] = [startId];
+    const closedSet = new Set<string>(); // Track fully-explored nodes
 
     nodes.forEach(node => {
       gScore[node.id] = Infinity;
@@ -39,8 +43,15 @@ export const Pathfinder = {
 
       if (currentId === endId) break;
 
+      // Skip nodes we have already fully explored
+      if (closedSet.has(currentId)) continue;
+      closedSet.add(currentId);
+
       const neighbors = edges.filter(e => e.from === currentId);
       for (const edge of neighbors) {
+        // Skip neighbours already in the closed set
+        if (closedSet.has(edge.to)) continue;
+
         const tentativeGScore = gScore[currentId] + edge.weight;
 
         if (tentativeGScore < gScore[edge.to]) {

@@ -11,14 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import places from "../data/places";
-
-type Place = {
-	id: string;
-	title: string;
-	subtitle: string;
-	coords: [number, number];
-};
+import places, { Place } from "../data/places";
 
 export default function HomeSearchScreen() {
 	const router = useRouter();

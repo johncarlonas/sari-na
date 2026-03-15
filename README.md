@@ -1,50 +1,80 @@
-# Welcome to your Expo app 👋
+# SARI NA — Smart AI Recognition & Indoor Navigation Assistant
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+SARI NA is a React Native (Expo) showcase for an indoor navigation experience that helps CSPC students move from one QR checkpoint to another when GPS coverage collapses inside the CCS and Annex buildings.
 
-## Get started
+## ✨ Highlights
 
-1. Install dependencies
+- **On-device QR anchoring** – the `Scan QR` screen relies on `expo-camera` and `react-native-vision-camera` compatible APIs so every scan instantly pins the user's indoor node without the need for Wi-Fi.
+- **Smart pathfinding** – a reusable `Pathfinder` service implements the A* algorithm on top of a JSON node graph (see `constants/mapData.ts`) that describes rooms, hallways, stairs, and portal nodes that bridge buildings.
+- **2D floor visualizer** – the new `Graph` component renders a static indoor map with highlighted routes so students can preview their walk before taking a step.
+- **Cross-building proof** – CCS floor data links to an Annex ground-floor map through "portal" nodes, satisfying the scalability requirement from the project brief.
 
-   ```bash
-   npm install
-   ```
+## 🧱 Project Structure
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/
+ ├─ components/        # Map + indoor graph visualizations
+ ├─ data/              # Searchable destinations that map to node IDs
+ ├─ user/              # File-based Expo Router screens (home, navigation, QR, etc.)
+constants/
+ ├─ mapData.ts         # University graph definition
+ └─ qrCheckpoints.ts   # Sample QR payloads → node metadata
+services/              # Pathfinder, map service helpers
+types/                 # Shared TypeScript types for nodes/floors/buildings
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🚶 Routing Data Model
 
-## Learn more
+- **Map Nodes** – `MapNode` objects represent rooms, hallways, stairs, or entrances. Each node keeps indoor pixel coordinates (`x`, `y`), its building ID, floor level, and optional outdoor GPS coordinates.
+- **Edges** – `MapEdge` connections define weighted, bi-directional walkways. Floors also list `interFloorEdges` for stairs or elevators.
+- **Portals** – special entrance nodes like `ccs_f1_portal_annex` and `annex_f1_portal_ccs` link two buildings. Their edge weight is higher to reflect longer walks.
 
-To learn more about developing your project with Expo, look at the following resources:
+To add a new space:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. Append a node to the appropriate building + floor inside `constants/mapData.ts`.
+2. Connect it with `bi(...)` helper edges toward adjacent hallways or stairs.
+3. Extend `app/data/places.ts` so the destination appears inside search results.
+4. (Optional) Add a QR payload in `constants/qrCheckpoints.ts` to simulate scanning that checkpoint.
 
-## Join the community
+## 📱 Simulating a QR Scan
 
-Join our community of developers creating universal apps.
+Use one of these payloads when testing with printed QR codes or by typing into Expo Go's developer QR mock:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+| Location             | Payload string             |
+| -------------------- | -------------------------- |
+| Room 1 (CCS F1)      | `SARI::CCS::F1::ROOM1`     |
+| CCS Canteen          | `SARI::CCS::F1::CANTEEN`   |
+| AiRCoDe Lab (CCS F4) | `SARI::CCS::F4::AIRCODE`   |
+| Annex Room 101       | `SARI::ANNEX::ROOM101`     |
+
+Scanning one of these strings updates the global anchor (`global.currentCheckpoint`, `global.currentNodeId`) so the Navigation screen can compute an accurate indoor path.
+
+## 🗺️ Indoor Graph Preview
+
+When a user selects a destination with indoor metadata, the Navigation bottom sheet now shows:
+
+1. Turn-by-turn cards for each node visited by the A* path.
+2. Floor chips to toggle between levels that participate in the route.
+3. A static 2D map (built with pure React Native views) that highlights the route, start, and destination nodes.
+
+## 🛠️ Getting Started
+
+```bash
+npm install
+npx expo start
+```
+
+- Use the **Home → Search** flow to choose a CCS/Annex room (e.g., AiRCoDe Lab).
+- Open **Scan QR** and scan a supported payload so your current node is pinned.
+- Navigate back to **Navigation** to see the computed route, indoor visualization, and guidance modals.
+
+## 🧭 Roadmap Ideas
+
+- Integrate the `react-native-vision-camera` based QR scanner with actual image processing once device testing is available.
+- Persist scanned checkpoints per user and sync them to a backend for analytics.
+- Extend `mapData.ts` with elevators, accessibility metadata, and additional buildings to cover the entire campus.
+- Replace the static Leaflet web view with vector tiles rendered directly inside React Native for finer control.
+
+---
+
+SARI NA makes the “scan → anchor → navigate” story tangible by pairing QR checkpoints, explicit indoor graphs, and a deterministic routing UI. Customize the graph data and payloads to map the next building in your campus expansion plan. 💡
