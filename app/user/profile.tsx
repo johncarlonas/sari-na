@@ -193,9 +193,9 @@ export default function Profile() {
           }]}
           >
             <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.menuIconBox}>
-              <Feather name="coffee" size={22} color="#fff" />
+              <Feather name="heart" size={22} color="#fff" />
             </LinearGradient>
-            <Text style={styles.menuText}>Buy us a Coffee</Text>
+            <Text style={styles.menuText}>Support Devs</Text>
             <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
           </Animated.View>
 
@@ -288,7 +288,7 @@ export default function Profile() {
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>3. Tap the result to view the campus map and building directions.</Text>
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>4. Follow the displayed route; scan intermediate QR checkpoints along the way.</Text>
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>5. Upon arrival, perform the final verification scan to complete navigation.{'\n'}</Text>
-              <Text style={[styles.aboutText, styles.aboutJustified, styles.aboutItalic, {marginTop:16}]}>“Precision Navigation, Inside and Out.”</Text>
+              <Text style={[styles.aboutFooter, {marginTop: 10}]}>“Precision Navigation, Inside and Out.”</Text>
             </ScrollView>
           </View>
         </View>
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   aboutText: {
-    fontSize: 16,
+    fontSize: 14,
     lineHeight: 22,
     color: '#333',
   },
@@ -611,6 +611,12 @@ const styles = StyleSheet.create({
   },
   aboutItalic: {
     fontStyle: 'italic',
+  },
+  aboutFooter: {
+    textAlign: 'center',
+    fontWeight: '900',
+    color: '#002A7A',
+    fontSize: 16,
   },
   aboutTitle: {
     fontSize: 20,
