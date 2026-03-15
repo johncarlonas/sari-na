@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing, Keyboard, BackHandler } from 'react-native';
 // @ts-ignore: no types available locally
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ export default function Profile() {
   const [userName, setUserName] = useState('John Renzzo Montenegro');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
   // editing pieces
   const [tempFirst, setTempFirst] = useState('');
   const [tempLast, setTempLast] = useState('');
@@ -69,6 +70,30 @@ export default function Profile() {
     setUserName(combined);
     setIsEditModalVisible(false);
   };
+
+  const handleLogout = () => {
+    setIsLogoutModalVisible(false);
+    try {
+      (global as any).currentCheckpoint = null;
+      (global as any).currentLocation = null;
+    } catch {}
+    router.replace('/login_signup');
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (isLogoutModalVisible) {
+          setIsLogoutModalVisible(false);
+          return true;
+        }
+        router.replace('/user/home');
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [isLogoutModalVisible, router])
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -174,7 +199,7 @@ export default function Profile() {
             <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
           </Animated.View>
 
-          <Pressable style={[styles.logoutButton, {marginBottom: 10}]} onPress={() => router.replace('/login_signup')}>
+          <Pressable style={[styles.logoutButton, {marginBottom: 10}]} onPress={() => setIsLogoutModalVisible(true)}>
             <LinearGradient
                   colors={["#1565C0", "#002A7A"]}
                   // start={{ x: 0, y: 0 }}
@@ -263,11 +288,47 @@ export default function Profile() {
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>3. Tap the result to view the campus map and building directions.</Text>
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>4. Follow the displayed route; scan intermediate QR checkpoints along the way.</Text>
               <Text style={[styles.aboutText, styles.aboutJustified, {marginTop:4}]}>5. Upon arrival, perform the final verification scan to complete navigation.{'\n'}</Text>
-              <Text style={[styles.aboutText, styles.aboutJustified, styles.aboutItalic, {marginTop:16}]}>“Bridging distances,
-                connecting classrooms, and navigating the future of CSPC.”</Text>
+              <Text style={[styles.aboutText, styles.aboutJustified, styles.aboutItalic, {marginTop:16}]}>“Precision Navigation, Inside and Out.”</Text>
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={isLogoutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsLogoutModalVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsLogoutModalVisible(false)}>
+          <View style={styles.modalCard} pointerEvents="box-none">
+            <Text style={styles.modalTitleCentered}>Logout</Text>
+            <Text style={styles.modalTextCentered}>Are you sure you want to log out?</Text>
+
+            <View style={styles.logoutActionRow}>
+              <LinearGradient
+                colors={["#1565C0", "#002A7A"]}
+                style={styles.logoutCancelWrapper}
+              >
+                <Pressable
+                  style={styles.logoutCancelButton}
+                  onPress={() => setIsLogoutModalVisible(false)}
+                >
+                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                </Pressable>
+              </LinearGradient>
+
+              <Pressable style={styles.logoutConfirmButton} onPress={handleLogout}>
+                <LinearGradient
+                  colors={["#1565C0", "#002A7A"]}
+                  style={styles.logoutConfirmGradient}
+                >
+                  <Text style={styles.logoutConfirmText}>Logout</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -412,7 +473,7 @@ const styles = StyleSheet.create({
   modalCard: {
     backgroundColor: '#f5f8fd',
     borderRadius: 20,
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 8,
     maxHeight: '88%',
@@ -437,6 +498,57 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#ffffff',
+  },
+  modalTitleCentered: {
+    fontSize: 25,
+    fontWeight: '900',
+    color: '#002A7A',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  modalTextCentered: {
+    fontSize: 15,
+    color: '#31538f',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  logoutActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logoutCancelWrapper: {
+    flex: 1,
+    borderRadius: 30,
+    padding: 3,
+  },
+  logoutCancelButton: {
+    height: 46,
+    borderRadius: 30,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutCancelText: {
+    color: '#113e94',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  logoutConfirmButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 30,
+    overflow: 'hidden',
+  },
+  logoutConfirmGradient: {
+    flex: 1,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutConfirmText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
   },
   modalTitle: {
     fontSize: 20,

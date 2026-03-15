@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import {
+  BackHandler,
 	Keyboard,
 	Pressable,
 	ScrollView,
@@ -10,6 +11,7 @@ import {
 	View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import places, { Place } from "../data/places";
 
@@ -49,6 +51,17 @@ export default function HomeSearchScreen() {
 	}, [searchText]);
 
 	const hasQuery = searchText.trim().length > 0;
+
+	useFocusEffect(
+		React.useCallback(() => {
+			const onBackPress = () => {
+				router.replace("/user/home");
+				return true;
+			};
+			const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+			return () => sub.remove();
+		}, [router])
+	);
 
 	return (
 		<SafeAreaView style={styles.safeArea}>

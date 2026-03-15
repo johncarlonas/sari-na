@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    paddingTop: 120,
+    paddingTop: 110,
     paddingBottom: 30,
     paddingHorizontal: 18,
   },
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
     marginBottom: 10,
-    marginTop: 30,
+    marginTop: 10,
   },
   homeWrapper: {
     borderRadius: 24,

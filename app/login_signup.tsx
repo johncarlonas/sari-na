@@ -1,7 +1,9 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import {
 	Animated,
+	BackHandler,
 	Easing,
 	Image,
 	Keyboard,
@@ -93,6 +95,14 @@ export default function LoginSignupScreen() {
 	const isSignup = mode === "signup";
 	const heading = useMemo(() => (isSignup ? "Create an Account" : "Welcome Back!"), [isSignup]);
 	const ctaLabel = useMemo(() => (isSignup ? "Sign Up" : "Login"), [isSignup]);
+
+	useFocusEffect(
+		React.useCallback(() => {
+			const onBackPress = () => true;
+			const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+			return () => sub.remove();
+		}, [])
+	);
 
 	return (
 		<LinearGradient

@@ -12,6 +12,8 @@ import {
   Keyboard,
   Animated,
   Easing,
+  Modal,
+  BackHandler,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,6 +37,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<Params>();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const containerBorder = searchFocused ? '#002A7A' : '#cfdaef';
 
   const [currentLocation, setCurrentLocation] = useState<{location:string;detail:string}|null>(null);
@@ -97,6 +100,31 @@ export default function HomeScreen() {
       Animated.stagger(150, animations).start();
     }, [])
   );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (showLogoutModal) {
+          setShowLogoutModal(false);
+          return true;
+        }
+        setShowLogoutModal(true);
+        return true;
+      };
+
+      const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => sub.remove();
+    }, [showLogoutModal])
+  );
+
+  const handleLogout = () => {
+    setShowLogoutModal(false);
+    try {
+      (global as any).currentCheckpoint = null;
+      (global as any).currentLocation = null;
+    } catch {}
+    router.replace("/login_signup");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -209,6 +237,37 @@ export default function HomeScreen() {
         </LinearGradient>
       </ScrollView>
       </TouchableWithoutFeedback>
+
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowLogoutModal(false)}>
+          <View style={styles.modalCard} pointerEvents="box-none">
+            <Text style={styles.modalTitle}>Logout</Text>
+            <Text style={styles.modalText}>Are you sure you want to log out?</Text>
+
+            <View style={styles.modalActionRow}>
+              <LinearGradient colors={["#1565C0", "#002A7A"]} style={styles.cancelWrapper}>
+                <Pressable
+                  style={styles.cancelButton}
+                  onPress={() => setShowLogoutModal(false)}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              </LinearGradient>
+
+              <Pressable style={styles.logoutButton} onPress={handleLogout}>
+                <LinearGradient colors={["#1565C0", "#002A7A"]} style={styles.logoutGradient}>
+                  <Text style={styles.logoutText}>Logout</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -427,5 +486,69 @@ const styles = StyleSheet.create({
     color: "#6b84b7",
     fontSize: 14,
     textAlign: "center",
-  }
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(4, 17, 43, 0.44)",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  modalCard: {
+    backgroundColor: "#f5f8fd",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 25,
+    fontWeight: "900",
+    color: "#002A7A",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    color: "#31538f",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  modalActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  cancelWrapper: {
+    flex: 1,
+    borderRadius: 30,
+    padding: 2,
+  },
+  cancelButton: {
+    height: 46,
+    borderRadius: 30,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelText: {
+    color: "#113e94",
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  logoutButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 30,
+    overflow: "hidden",
+  },
+  logoutGradient: {
+    flex: 1,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutText: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "800",
+  },
 });

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { Modal, Pressable, StyleSheet, Text, View, ScrollView, Animated, Easing } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View, Animated, Easing } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,12 +29,13 @@ export default function NavigationScreen() {
   const params = useLocalSearchParams<Params>();
   const insets = useSafeAreaInsets();
   const navSafeBottom = Math.max(insets.bottom, 14);
-  const CARD_COLLAPSED_HEIGHT = 260 + navSafeBottom; 
+  const CARD_COLLAPSED_HEIGHT = 260 + navSafeBottom;
  
 
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const [mapViewMode, setMapViewMode] = useState<"map" | "graph">("map");
   const [currentCheckpoint, setCurrentCheckpoint] = useState<QrCheckpoint | null>(null);
   const [showLostToast, setShowLostToast] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -137,16 +138,6 @@ export default function NavigationScreen() {
     if (!activeFloorKey) return null;
     return floorSlices.find((slice) => slice.key === activeFloorKey) ?? null;
   }, [floorSlices, activeFloorKey]);
-
-  const instructionSteps = useMemo(
-    () =>
-      (pathNodes ?? []).map((node, index) => ({
-        node,
-        index,
-        buildingName: MAP_DATA.buildings[node.buildingId]?.name ?? node.buildingId.toUpperCase(),
-      })),
-    [pathNodes]
-  );
 
   const currentFloorPlan = useMemo<IndoorMapDescriptor | null>(() => {
     if (currentCheckpoint) {
@@ -271,6 +262,10 @@ export default function NavigationScreen() {
       } catch {}
     }, [])
   );
+
+  useEffect(() => {
+    setMapViewMode("map");
+  }, [placeId]);
 
   const goToArrival = () => {
     setShowCompleteModal(false);
@@ -443,7 +438,12 @@ export default function NavigationScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.mapWrap}>
-        {indoorMapProps ? (
+        {mapViewMode === "map" ? (
+          <Index
+            simple={false}
+            destination={{ latitude: destinationCoords[1], longitude: destinationCoords[0] }}
+          />
+        ) : indoorMapProps ? (
           <View
             style={[
               styles.indoorMapContainer,
@@ -475,10 +475,18 @@ export default function NavigationScreen() {
             )}
           </View>
         ) : (
-          <Index
-            simple={false}
-            destination={{ latitude: destinationCoords[1], longitude: destinationCoords[0] }}
-          />
+          <View
+            style={[
+              styles.indoorMapContainer,
+              { paddingTop: insets.top + 100 },
+            ]}
+          >
+            <View style={styles.graphPlaceholder}>
+              <Text style={styles.graphPlaceholderText}>
+                No indoor graph available for this destination yet.
+              </Text>
+            </View>
+          </View>
         )}
 
         {hasReachedDestination && (
@@ -504,11 +512,46 @@ export default function NavigationScreen() {
           <Text style={[styles.backText, { marginLeft: 4 }]}>Navigation</Text>
         </Pressable>
 
+        <View style={[styles.viewToggleWrap, { bottom: CARD_COLLAPSED_HEIGHT + 8 }]}>
+          <View style={styles.viewToggleTrack}>
+            <Pressable
+              style={[
+                styles.viewToggleButton,
+                mapViewMode === "map" && styles.viewToggleButtonActive,
+              ]}
+              onPress={() => setMapViewMode("map")}
+            >
+              <Text
+                style={[
+                  styles.viewToggleText,
+                  mapViewMode === "map" && styles.viewToggleTextActive,
+                ]}
+              >
+                Map
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.viewToggleButton,
+                mapViewMode === "graph" && styles.viewToggleButtonActive,
+              ]}
+              onPress={() => setMapViewMode("graph")}
+            >
+              <Text
+                style={[
+                  styles.viewToggleText,
+                  mapViewMode === "graph" && styles.viewToggleTextActive,
+                ]}
+              >
+                Graph
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
         <View style={[styles.androidNavBg, { height: navSafeBottom  }]} pointerEvents="none" />
 
-        <View
-          style={[styles.bottomCardWrapper, { height: CARD_COLLAPSED_HEIGHT + 5 }]}
-        >
+        <View style={[styles.bottomCardWrapper, { height: CARD_COLLAPSED_HEIGHT }]}>
           <View style={styles.bottomCard}>
             <View style={styles.dragArea}>
               <View style={styles.handle} />
@@ -533,90 +576,9 @@ export default function NavigationScreen() {
             </View>
             </View>
 
-            <ScrollView
-              style={styles.extraContent}
-              contentContainerStyle={[styles.cardContent, { paddingBottom: 0 }]}
-              nestedScrollEnabled
-              scrollEnabled
-              showsVerticalScrollIndicator={false}
-            >
-              {pathNodes ? (
-                <>
-                  <Text style={styles.sectionHeading}>Turn-by-turn</Text>
-                  {instructionSteps.map((step) => (
-                    <View key={`${step.node.id}-${step.index}`} style={styles.instructionCard}>
-                      <View style={styles.stepNumber}>
-                        <Text style={styles.stepNumberText}>{step.index + 1}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.stepTitle}>{step.node.label}</Text>
-                        <Text style={styles.stepInstruction}>{step.node.instruction}</Text>
-                        <Text style={styles.stepMeta}>
-                          {step.buildingName} • Floor {step.node.floor}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </>
-              ) : (
-                <View style={styles.emptyWrap}>
-                  <Text style={styles.emptyTitle}>Pick a mapped destination</Text>
-                  <Text style={styles.emptyText}>
-                    Indoor instructions will appear here for CCS and Annex rooms.
-                  </Text>
-                </View>
-              )}
-
-              {floorSlices.length > 0 && (
-                <View style={styles.graphSection}>
-                  <Text style={styles.sectionHeading}>Indoor Map Preview</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.floorTabs}
-                  >
-                    {floorSlices.map((slice) => (
-                      <Pressable
-                        key={slice.key}
-                        style={[
-                          styles.floorTab,
-                          activeSlice?.key === slice.key && styles.floorTabActive,
-                        ]}
-                        onPress={() => setActiveFloorKey(slice.key)}
-                      >
-                        <Text
-                          style={[
-                            styles.floorTabText,
-                            activeSlice?.key === slice.key && styles.floorTabTextActive,
-                          ]}
-                        >
-                          {slice.buildingName} • L{slice.floor}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                  {activeSlice ? (
-                    <PathStripMap
-                      buildingId={activeSlice.buildingId}
-                      floorLevel={activeSlice.floor}
-                      pathNodeIds={activeSlice.pathNodeIds}
-                      currentNodeId={currentCheckpoint?.nodeId ?? null}
-                      destinationNodeId={destinationNodeId || null}
-                    />
-                  ) : (
-                    <View style={styles.graphPlaceholder}>
-                      <Text style={styles.graphPlaceholderText}>
-                        Select a floor to preview the static route.
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-
           <LinearGradient
             colors={["#1565C0", "#002A7A"]}
-            style={styles.googleWrapper}
+            style={[styles.googleWrapper, { marginTop: 14 }]}
           >
             <Pressable style={styles.googleButton} onPress={() => setShowGuideModal(true)}>
               <Text style={styles.googleText}>Click to view navigation guide</Text>
@@ -822,19 +784,12 @@ const styles = StyleSheet.create({
   },
   bottomCard: {
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 20,
     flex: 1,
-  },
-  cardContent: {
-    paddingTop: 4,
-  },
-  extraContent: {
-    flexGrow: 0,
-    // scrollable padding only applies to dynamic content above
   },
   handle: {
     width: 50,
@@ -850,7 +805,7 @@ const styles = StyleSheet.create({
   routeRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   routeTextWrap: {
     flex: 1,
@@ -904,8 +859,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   completeButton: {
-    marginTop: 10,
-    height: 50,
+    marginTop: 8,
+    height: 48,
     borderRadius: 30,
     overflow: "hidden",
   },
@@ -1024,103 +979,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
   },
-  sectionHeading: {
-    color: "#002A7A",
-    fontSize: 16,
-    fontWeight: "800",
-    marginBottom: 10,
-    marginTop: 8,
-  },
-  instructionCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: "#e1e8f5",
-  },
-  stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 16,
-    backgroundColor: "#e2ecff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  stepNumberText: {
-    color: "#0b489d",
-    fontWeight: "800",
-  },
-  stepTitle: {
-    color: "#002A7A",
-    fontSize: 15,
-    fontWeight: "800",
-    marginBottom: 2,
-  },
-  stepInstruction: {
-    color: "#4868a3",
-    fontSize: 13,
-  },
-  stepMeta: {
-    color: "#8aa3ce",
-    fontSize: 12,
-    marginTop: 3,
-  },
-  emptyWrap: {
-    borderWidth: 1,
-    borderColor: "#d5e1fb",
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 6,
-    backgroundColor: "#f6f9ff",
-  },
-  emptyTitle: {
-    color: "#002A7A",
-    fontSize: 15,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  emptyText: {
-    color: "#6b84b7",
-    fontSize: 13,
-  },
-  graphSection: {
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  floorTabs: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 10,
-  },
-  floorTab: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#d7e2ff",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#ffffff",
-  },
-  floorTabActive: {
-    backgroundColor: "#0b489d",
-    borderColor: "#0b489d",
-  },
-  floorTabText: {
-    color: "#0b489d",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  floorTabTextActive: {
-    color: "#ffffff",
-  },
   graphPlaceholder: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#dfe7fb",
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#ffffff",
+    marginHorizontal: 16,
   },
   graphPlaceholderText: {
     color: "#6b84b7",
@@ -1226,5 +1093,37 @@ const styles = StyleSheet.create({
     color: "#5c6f95",
     fontSize: 12,
     marginTop: 2,
+  },
+  viewToggleWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 41,
+  },
+  viewToggleTrack: {
+    flexDirection: "row",
+    backgroundColor: "#6b6b6b",
+    borderRadius: 999,
+    padding: 1,
+  },
+  viewToggleButton: {
+    minWidth: 60,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewToggleButtonActive: {
+    backgroundColor: "#ffffff",
+  },
+  viewToggleText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  viewToggleTextActive: {
+    color: "#0b489d",
   },
 });
