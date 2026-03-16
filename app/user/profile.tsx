@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   logoutCancelButton: {
-    height: 46,
+    height: 50,
     borderRadius: 30,
     backgroundColor: '#ffffff',
     alignItems: 'center',
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
   },
   logoutConfirmButton: {
     flex: 1,
-    height: 46,
+    height: 50,
     borderRadius: 30,
     overflow: 'hidden',
   },

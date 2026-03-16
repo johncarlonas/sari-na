@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import {
+	ActivityIndicator,
 	Animated,
 	BackHandler,
 	Easing,
@@ -227,7 +228,7 @@ export default function LoginSignupScreen() {
 		if (isVerifyingOtp) return;
 		const cleanCode = otpCode.trim();
 		if (cleanCode.length !== 6) {
-			setOtpError("Incorrect code");
+			setOtpError("Code is invalid or expired");
 			return;
 		}
 
@@ -254,12 +255,12 @@ export default function LoginSignupScreen() {
 		} catch (error: any) {
 			const rawMessage = (error?.message || "").toLowerCase();
 			if (rawMessage.includes("expired")) {
-				setOtpError("Code expired");
+				setOtpError("Code is invalid or expired");
 				return;
 			}
 
 			if (rawMessage.includes("invalid") || rawMessage.includes("token")) {
-				setOtpError("Incorrect code");
+				setOtpError("Code is invalid or expired");
 				return;
 			}
 
@@ -422,6 +423,8 @@ export default function LoginSignupScreen() {
 						A 6-digit verification code will be sent to your email.
 					</Text>
 
+					{!!authError && <Text style={styles.authError}>{authError}</Text>}
+
 					<Pressable
 						style={[styles.ctaButton, (isSwitching || isSubmitting) && styles.buttonNoShadow]}
 						onPress={handleAuthSubmit}
@@ -433,25 +436,40 @@ export default function LoginSignupScreen() {
 							// end={{ x: 1, y: 0.5 }}
 							style={styles.ctaGradient}
 						>
-							<Text style={styles.ctaText}>{isSubmitting ? "Please wait..." : ctaLabel}</Text>
+							{isSubmitting ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.ctaText}>{ctaLabel}</Text>}
 						</LinearGradient>
 					</Pressable>
 
-						<LinearGradient
-							colors={["#1565C0", "#002A7A"]}
-							// start={{ x: 0, y: 0.5 }}
-							// end={{ x: 1, y: 0.5 }}
-							style={styles.googleWrapper}
-						>
-							<Pressable style={[styles.googleButton, isSwitching && styles.buttonNoShadow]}>
-								<Image source={{uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png'}} style={{width:24, height:24}} />
-								<Text style={styles.googleText}>{isSignup ? "Sign up with Google" : "Login with Google"}</Text>
-							</Pressable>
-						</LinearGradient>
+					<LinearGradient
+						colors={["#1565C0", "#002A7A"]}
+						// start={{ x: 0, y: 0.5 }}
+						// end={{ x: 1, y: 0.5 }}
+						style={styles.googleWrapper}
+					>
+						<Pressable style={[styles.googleButton, isSwitching && styles.buttonNoShadow]}>
+							<Image source={{uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png'}} style={{width:24, height:24}} />
+							<Text style={styles.googleText}>{isSignup ? "Sign up with Google" : "Login with Google"}</Text>
+						</Pressable>
+					</LinearGradient>
 
-						<View style={styles.authErrorBottomWrap}>
-							{!!authError && <Text style={styles.authError}>{authError}</Text>}
+					<LinearGradient
+						colors={["#FF8C5A", "#FF6B35"]}
+						style={styles.quickTipCard}
+					>
+						<View style={styles.quickTipIconWrapper}>
+							<View style={styles.quickTipIcon}>
+								<Ionicons name="shield" size={25} color="#fff" />
+							</View>
 						</View>
+						<View style={styles.quickTipTextWrap}>
+							<Text style={styles.quickTipTitle}>Why OTP?</Text>
+							<Text style={styles.quickTipText}>
+								OTP is more secure than a password, that's it.{"\n"}
+								
+								Need help? <Text style={styles.quickTipEmail}>sarinapp.dev@gmail.com</Text>
+							</Text>
+						</View>
+					</LinearGradient>
 					</Animated.View>
 				</View>
 				</View>
@@ -502,9 +520,7 @@ export default function LoginSignupScreen() {
 								disabled={isVerifyingOtp}
 							>
 								<LinearGradient colors={["#1565C0", "#002A7A"]} style={styles.verifyButtonGradient}>
-									<Text style={styles.verifyButtonText}>
-										{isVerifyingOtp ? "Verifying..." : "Verify & Continue"}
-									</Text>
+										{isVerifyingOtp ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.verifyButtonText}>Verify & Continue</Text>}
 								</LinearGradient>
 							</Pressable>
 
@@ -645,7 +661,7 @@ const styles = StyleSheet.create({
 	ctaButton: {
 		borderRadius: 30,
 		height: 52,
-		marginTop: 15,
+		marginTop: 4,
 		shadowColor: "#1E88E5",
 		shadowOpacity: 0.35,
 		shadowRadius: 10,
@@ -669,6 +685,7 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		fontWeight: "600",
 		textAlign: "center",
+		marginTop: 6,
 		marginBottom: 8,
 	},
 	googleWrapper: {
@@ -735,6 +752,7 @@ const styles = StyleSheet.create({
 		color: "#D62828",
 		fontSize: 13,
 		fontWeight: "700",
+		textAlign: "center",
 		marginBottom: 8,
 	},
 	otpInput: {
@@ -758,7 +776,7 @@ const styles = StyleSheet.create({
 	},
 	verifyButton: {
 		height: 50,
-		borderRadius: 14,
+		borderRadius: 30,
 		overflow: "hidden",
 	},
 	verifyButtonGradient: {
@@ -781,9 +799,52 @@ const styles = StyleSheet.create({
 	resendDisabled: {
 		color: "#94A3B8",
 	},
-	authErrorBottomWrap: {
-		minHeight: 22,
+	quickTipCard: {
+		borderRadius: 16,
+		paddingHorizontal: 14,
+		paddingVertical: 15,
+		flexDirection: "row",
+		alignItems: "center",
+		gap: 10,
+		marginTop: 18,
+		marginBottom: 12,
+		backgroundColor: "#FF6B35",
+		shadowColor: "#FF6B35",
+		shadowOpacity: 0.3,
+		shadowRadius: 12,
+		elevation: 5,
+	},
+	quickTipIconWrapper: {
+		width: 42,
+		height: 42,
+		borderRadius: 12,
+		backgroundColor: "rgba(255,255,255,0.2)",
 		justifyContent: "center",
-		marginTop: 8,
+		alignItems: "center",
+	},
+	quickTipIcon: {
+		width: 24,
+		height: 24,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+	quickTipTextWrap: {
+		flex: 1,
+	},
+	quickTipTitle: {
+		color: "#ffffff",
+		fontSize: 16,
+		fontWeight: "bold",
+		marginBottom: 2,
+	},
+	quickTipText: {
+		color: "rgba(255,255,255,0.95)",
+		fontSize: 12,
+		lineHeight: 18,
+	},
+	quickTipEmail: {
+		color: "rgba(255,255,255,0.95)",
+		fontSize: 12,
+		fontWeight: "800",
 	},
 });
