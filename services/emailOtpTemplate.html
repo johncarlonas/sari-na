@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SARI NA Verification Code</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#333;line-height:1.6;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;">
+      <tr>
+        <td style="background:#002A53;padding:20px;text-align:center;">
+          <div style="font-size:32px;font-weight:700;color:#ffffff;line-height:1.2;">SARI NA</div>
+          <div style="font-size:14px;color:#ffffff;margin-top:8px;">Email Verification</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#F2F4F7;padding:30px;">
+          <p style="margin:0 0 10px;font-size:16px;">Thank you for signing in to <strong>SARI NA</strong>!</p>
+          <p style="margin:0 0 14px;font-size:16px;">Please use the following code to verify your email address:</p>
+
+          <div style="background:#002A53;border-radius:10px;padding:20px;text-align:center;font-size:32px;font-weight:700;letter-spacing:5px;color:#ffffff;margin:20px 0;">
+            {{ .Token }}
+          </div>
+
+          <p style="margin:0;font-size:16px;">This code will expire in <strong>5 minutes</strong>.</p>
+
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid #E2E8F0;font-size:12px;color:#666;text-align:center;">
+            <p style="margin:0 0 6px;">If you didn't create an account, please ignore this email.</p>
+            <p style="margin:0;">© 2026 SARI NA. All rights reserved.</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
