@@ -12,8 +12,8 @@ export const QR_CHECKPOINTS: QrCheckpoint[] = [
   {
     id: "annex_f1_room101_qr",
     payloads: ["SARI::ANNEX:F1::ANNEXROOM101", "annex_f1_room101"],
-    location: "Annex Room 101",
-    detail: "Annex Building - Floor 1",
+    location: "CHS Room 1",
+    detail: "College of Health Sciences - Floor 1",
     nodeId: "annex_f1_room101",
     buildingId: "annex",
     floor: 1,
@@ -21,8 +21,8 @@ export const QR_CHECKPOINTS: QrCheckpoint[] = [
   {
     id: "annex_f1_room102_qr",
     payloads: ["SARI::ANNEX:F1::ANNEXROOM102", "annex_f1_room102"],
-    location: "Annex Room 102",
-    detail: "Annex Building - Floor 1",
+    location: "CHS Room 2",
+    detail: "College of Health Sciences - Floor 1",
     nodeId: "annex_f1_room102",
     buildingId: "annex",
     floor: 1,

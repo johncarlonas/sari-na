@@ -26,7 +26,7 @@ export const MAP_DATA: UniversityMap = {
             { id: "ccs_f1_r2", type: "room", label: "Room 2", instruction: "Enter Room 2.", x: 600, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_r4", type: "room", label: "Room 4", instruction: "Enter Room 4.", x: 700, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_r5", type: "room", label: "Room 5", instruction: "Enter Room 5.", x: 750, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_portal_annex", type: "entrance", label: "Annex Walkway", instruction: "Exit CCS through the annex walkway portal.", x: 820, y: 500, floor: 1, buildingId: "ccs" },
+            { id: "ccs_f1_portal_annex", type: "entrance", label: "CHS Walkway", instruction: "Exit CCS through the CHS walkway portal.", x: 820, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_stairs_e", type: "stairs", label: "East Stairs", instruction: "Stairs near Men's CR.", x: 800, y: 500, floor: 1, buildingId: "ccs" },
             { id: "ccs_f1_mcr", type: "room", label: "Men's CR", instruction: "Men's CR is at the far right.", x: 900, y: 500, floor: 1, buildingId: "ccs" },
           ],
@@ -136,17 +136,17 @@ export const MAP_DATA: UniversityMap = {
     },
     annex: {
       id: "annex",
-      name: "Annex Building",
+      name: "College of Health Sciences",
       floors: [
         {
           level: 1,
           nodes: [
-            { id: "annex_f1_entrance", type: "entrance", label: "Annex Entrance", instruction: "Enter the Annex building lobby.", x: 200, y: 520, floor: 1, buildingId: "annex", lat: 13.40512, lng: 123.37795 },
+            { id: "annex_f1_entrance", type: "entrance", label: "CHS Entrance", instruction: "Enter the CHS building lobby.", x: 200, y: 520, floor: 1, buildingId: "annex", lat: 13.40525, lng: 123.3776 },
             { id: "annex_f1_hall_a", type: "path", label: "Hallway A", instruction: "Walk through the west hallway.", x: 320, y: 520, floor: 1, buildingId: "annex" },
             { id: "annex_f1_hall_b", type: "path", label: "Hallway B", instruction: "Continue down the main hallway.", x: 460, y: 520, floor: 1, buildingId: "annex" },
-            { id: "annex_f1_room101", type: "room", label: "Annex Room 101", instruction: "You are beside Annex Room 101.", x: 520, y: 460, floor: 1, buildingId: "annex", lat: 13.40524, lng: 123.37812 },
-            { id: "annex_f1_room102", type: "room", label: "Annex Room 102", instruction: "Annex Room 102 is on the right.", x: 520, y: 580, floor: 1, buildingId: "annex" },
-            { id: "annex_f1_portal_ccs", type: "entrance", label: "CCS Portal", instruction: "Follow the walkway back to CCS.", x: 620, y: 520, floor: 1, buildingId: "annex", lat: 13.4053, lng: 123.37825 }
+            { id: "annex_f1_room101", type: "room", label: "CHS Room 1", instruction: "You are beside CHS Room 1.", x: 520, y: 460, floor: 1, buildingId: "annex", lat: 13.40521, lng: 123.3776 },
+            { id: "annex_f1_room102", type: "room", label: "CHS Room 2", instruction: "CHS Room 2 is on the right.", x: 520, y: 580, floor: 1, buildingId: "annex", lat: 13.40517, lng: 123.3776 },
+            { id: "annex_f1_portal_ccs", type: "entrance", label: "CCS Portal", instruction: "Follow the walkway back to CCS.", x: 620, y: 520, floor: 1, buildingId: "annex", lat: 13.40529, lng: 123.37764 }
           ],
           edges: [
             ...bi("annex_f1_entrance", "annex_f1_hall_a", 12),
@@ -163,7 +163,7 @@ export const MAP_DATA: UniversityMap = {
 
   // THIS IS THE BRIDGE
   interBuildingEdges: [
-    // Portal walkway between CCS and Annex (represents outdoor travel)
+    // Portal walkway between CCS and CHS (represents outdoor travel)
     ...bi("ccs_f1_portal_annex", "annex_f1_portal_ccs", 220)
   ]
 };

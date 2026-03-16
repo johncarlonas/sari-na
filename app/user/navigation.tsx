@@ -9,6 +9,7 @@ import * as Location from "expo-location";
 // eslint-disable-next-line import/no-unresolved
 import Index from "../components/map";
 import PathStripMap from "../components/PathStripMap";
+import Graph from "../components/Graph";
 import { MapService } from "../../services/mapService";
 import type { MapNode } from "../../types/mapTypes";
 import { MAP_DATA } from "../../constants/mapData";
@@ -37,9 +38,6 @@ export default function NavigationScreen() {
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [mapViewMode, setMapViewMode] = useState<"map" | "graph">("map");
   const [currentCheckpoint, setCurrentCheckpoint] = useState<QrCheckpoint | null>(null);
-  const [showLostToast, setShowLostToast] = useState(false);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const toastX = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const [activeFloorKey, setActiveFloorKey] = useState<string | null>(null);
   const [heading, setHeading] = useState(0);
@@ -80,6 +78,10 @@ export default function NavigationScreen() {
   }, [allPlaces]);
 
   const destinationNodeId = destinationPlace?.mapNodeId ?? "";
+  const graphBuildingId = useMemo(() => {
+    const preferred = destinationPlace?.buildingId ?? currentCheckpoint?.buildingId ?? "ccs";
+    return MAP_DATA.buildings[preferred] ? preferred : "ccs";
+  }, [destinationPlace?.buildingId, currentCheckpoint?.buildingId]);
   const fallbackStartNode = destinationPlace?.buildingId === "annex" ? "ccs_f1_portal_annex" : "ccs_f1_r1";
   const startNodeId = currentCheckpoint?.nodeId ?? fallbackStartNode;
 
@@ -87,6 +89,31 @@ export default function NavigationScreen() {
     if (!destinationNodeId) return null;
     return MapService.calculateRoute(startNodeId, destinationNodeId);
   }, [destinationNodeId, startNodeId]);
+
+  const graphPathNodeIds = useMemo(() => {
+    if (!pathNodes || !pathNodes.length) return [] as string[];
+    return pathNodes
+      .filter((node) => node.buildingId === graphBuildingId)
+      .map((node) => node.id);
+  }, [graphBuildingId, pathNodes]);
+
+  const graphDestinationNodeId =
+    destinationPlace?.buildingId === graphBuildingId
+      ? destinationNodeId || null
+      : graphPathNodeIds[graphPathNodeIds.length - 1] ?? null;
+
+  const hasCrossBuildingSegmentInGraph = Boolean(
+    currentCheckpoint &&
+      currentCheckpoint.buildingId !== graphBuildingId &&
+      graphPathNodeIds.length > 0
+  );
+
+  const graphCurrentNodeId =
+    currentCheckpoint?.buildingId === graphBuildingId
+      ? currentCheckpoint.nodeId
+      : hasCrossBuildingSegmentInGraph
+      ? "__outside_center__"
+      : null;
 
   type FloorSlice = {
     key: string;
@@ -310,25 +337,6 @@ export default function NavigationScreen() {
     });
   };
 
-  // toast timer with fade and slide
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setShowLostToast(true);
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(toastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-          Animated.timing(toastX, { toValue: -60, duration: 300, useNativeDriver: true }),
-        ]),
-        Animated.delay(5000),
-        Animated.parallel([
-          Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(toastX, { toValue: 0, duration: 300, useNativeDriver: true }),
-        ]),
-      ]).start(() => setShowLostToast(false));
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
   // floating button very gentle pulse
   useEffect(() => {
     Animated.loop(
@@ -443,36 +451,37 @@ export default function NavigationScreen() {
             simple={false}
             destination={{ latitude: destinationCoords[1], longitude: destinationCoords[0] }}
           />
-        ) : indoorMapProps ? (
+        ) : graphBuildingId === "annex" ? (
           <View
             style={[
               styles.indoorMapContainer,
-              { paddingTop: insets.top + 60 },
+              {
+                justifyContent: "center",
+                paddingTop: insets.top + 120,
+                paddingBottom: CARD_COLLAPSED_HEIGHT + 40,
+              },
             ]}
           >
-            <PathStripMap
-              buildingId={indoorMapProps.buildingId}
-              floorLevel={indoorMapProps.floorLevel}
-              pathNodeIds={indoorMapProps.pathNodeIds}
-              currentNodeId={currentCheckpoint?.nodeId ?? null}
-              destinationNodeId={indoorMapProps.targetNodeId}
-              heading={heading}
+            <View style={styles.graphPlaceholder}>
+              <Text style={styles.graphPlaceholderText}>
+                CHS has currently 1 floor, no graph created.
+              </Text>
+            </View>
+          </View>
+        ) : MAP_DATA.buildings[graphBuildingId] ? (
+          <View
+            style={[
+              styles.indoorMapContainer,
+              { paddingTop: insets.top + 120 },
+            ]}
+          >
+            <Graph
+              buildingId={graphBuildingId}
+              pathNodeIds={graphPathNodeIds}
+              currentNodeId={graphCurrentNodeId}
+              destinationNodeId={graphDestinationNodeId}
               fullScreen
             />
-            {floorInstruction && (
-              <View style={[styles.floorTipCard, { bottom: navSafeBottom + 40 }]}>
-                <View style={styles.floorTipIcon}>
-                  <Ionicons name={floorInstruction.icon as any} size={18} color="#ffffff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.floorTipTitle}>{floorInstruction.title}</Text>
-                  <Text style={styles.floorTipSubtitle}>{floorInstruction.subtitle}</Text>
-                  {floorMetaLabel && (
-                    <Text style={styles.floorTipMeta}>{floorMetaLabel}</Text>
-                  )}
-                </View>
-              </View>
-            )}
           </View>
         ) : (
           <View
@@ -512,7 +521,7 @@ export default function NavigationScreen() {
           <Text style={[styles.backText, { marginLeft: 4 }]}>Navigation</Text>
         </Pressable>
 
-        <View style={[styles.viewToggleWrap, { bottom: CARD_COLLAPSED_HEIGHT + 8 }]}>
+        <View style={[styles.viewToggleWrap, { bottom: CARD_COLLAPSED_HEIGHT + 16 }]}>
           <View style={styles.viewToggleTrack}>
             <Pressable
               style={[
@@ -551,7 +560,7 @@ export default function NavigationScreen() {
 
         <View style={[styles.androidNavBg, { height: navSafeBottom  }]} pointerEvents="none" />
 
-        <View style={[styles.bottomCardWrapper, { height: CARD_COLLAPSED_HEIGHT }]}>
+        <View style={[styles.bottomCardWrapper, { height: CARD_COLLAPSED_HEIGHT, bottom: 6 }]}>
           <View style={styles.bottomCard}>
             <View style={styles.dragArea}>
               <View style={styles.handle} />
@@ -578,7 +587,7 @@ export default function NavigationScreen() {
 
           <LinearGradient
             colors={["#1565C0", "#002A7A"]}
-            style={[styles.googleWrapper, { marginTop: 14 }]}
+            style={[styles.googleWrapper, { marginTop: 6 }]}
           >
             <Pressable style={styles.googleButton} onPress={() => setShowGuideModal(true)}>
               <Text style={styles.googleText}>Click to view navigation guide</Text>
@@ -686,11 +695,6 @@ export default function NavigationScreen() {
         </Pressable>
       </Modal>
             {/* floating lost icon */}
-        {showLostToast && (
-          <View style={styles.toast}>
-            <Text style={styles.toastText}>Lost? Scan nearest QR Code</Text>
-          </View>
-        )}
         <Animated.View style={[styles.floatingButton, { transform: [{ scale: buttonScale }] }]}>
           <LinearGradient colors={["#002A7A", "#1565C0"]} style={styles.floatingButton} >
             <Pressable onPress={goToScanLost}>
@@ -705,7 +709,7 @@ export default function NavigationScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#edf2f8",
+    backgroundColor: "#E3EAFD",
   },
   mapWrap: {
     flex: 1,
@@ -889,7 +893,13 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
   modalBackdrop: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    elevation: 999,
     backgroundColor: "rgba(4, 17, 43, 0.44)",
     justifyContent: "center",
     paddingHorizontal: 20,
@@ -900,6 +910,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
+    zIndex: 1000,
+    elevation: 1000,
   },
   modalTitle: {
     fontSize: 25,
@@ -1004,20 +1016,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     zIndex: 40,
-  },
-  toast: {
-    position: "absolute",
-    top: 208,
-    right: 100, 
-    backgroundColor: "rgba(0,0,0,0.7)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    zIndex: 50,
-  },
-  toastText: {
-    color: "#ffffff",
-    fontSize: 14,
   },
   floorTipCard: {
     position: "absolute",

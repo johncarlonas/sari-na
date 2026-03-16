@@ -1,12 +1,11 @@
-import React, { useMemo } from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MAP_DATA } from "../../constants/mapData";
 import type { MapNode } from "../../types/mapTypes";
 
 type GraphProps = {
   buildingId: string;
-  floorLevel: number;
+  floorLevel?: number;
   pathNodeIds?: string[];
   currentNodeId?: string | null;
   destinationNodeId?: string | null;
@@ -14,467 +13,420 @@ type GraphProps = {
   fullScreen?: boolean;
 };
 
-type ProjectedNode = {
-  node: MapNode;
-  coord: { x: number; y: number };
-};
+const NODE_TYPES_FOR_GRAPH = new Set(["room", "stairs", "entrance"]);
+const HIDDEN_GRAPH_NODE_IDS = new Set(["ccs_f1_portal_annex", "annex_f1_portal_ccs"]);
+const OUTSIDE_CENTER_NODE_ID = "__outside_center__";
 
-type BlueprintShape = {
-  key: string;
-  kind: "shell" | "hall" | "room" | "stairs" | "portal";
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  label?: string;
-  nodeId?: string;
+const getGraphLabel = (node: MapNode) => {
+  if (node.id.includes("_wcr")) return "WCR";
+  if (node.id.includes("_mcr")) return "MCR";
+  if (node.id.includes("_stairs_w")) return "WST";
+  if (node.id.includes("_stairs_e")) return "EST";
+  if (node.id === "ccs_f1_offices") return "OF";
+  if (node.id === "ccs_f2_faculty") return "FAC";
+  if (node.id === "ccs_f2_dean") return "DEA";
+  if (node.id === "ccs_f1_canteen") return "C";
+  if (node.id === "ccs_f3_it1") return "IT1";
+  if (node.id === "ccs_f3_it2") return "IT2";
+  if (node.id === "ccs_f3_erp") return "ERP";
+  if (node.id === "ccs_f3_cs") return "CSL";
+  if (node.id === "ccs_f2_mac") return "MAC";
+  if (node.id === "ccs_f2_open") return "OPL";
+  if (node.id === "ccs_f4_air") return "AIR";
+  if (node.id === "ccs_f4_lis") return "LIS";
+  if (node.id === "ccs_f4_nas") return "NAS";
+  if (node.id === "ccs_f4_rise") return "RIS";
+
+  const roomMatch = node.id.match(/_r(\d+)$/i);
+  if (roomMatch) return `R${roomMatch[1]}`;
+
+  if (node.id === "annex_f1_room101") return "R1";
+  if (node.id === "annex_f1_room102") return "R2";
+  if (node.id === "annex_f1_entrance") return "ENT";
+
+  return node.label;
 };
 
 export default function Graph({
   buildingId,
-  floorLevel,
   pathNodeIds = [],
-  currentNodeId,
-  destinationNodeId,
-  heading = 0,
+  currentNodeId = null,
+  destinationNodeId = null,
   fullScreen = false,
 }: GraphProps) {
   const building = MAP_DATA.buildings[buildingId];
-  const floor = building?.floors.find((item) => item.level === floorLevel);
+  const [dialogNodeId, setDialogNodeId] = useState<string | null>(null);
 
-  const size = useMemo(() => {
-    const { width, height } = Dimensions.get("window");
-    if (fullScreen) {
-      // The bottom card is ~260-300px tall depending on safe area insets.
-      // Subtracting 310 leaves enough room so the graph doesn't render behind it or get squished
-      return { width, height: height - 310 }; 
-    }
-    return {
-      width: Math.min(width - 40, 360),
-      height: 230,
-    };
-  }, [fullScreen]);
+  const rows = useMemo(() => {
+    if (!building) return [] as Array<{ level: number; nodes: MapNode[] }>;
 
-  const padding = 26;
+    return [...building.floors]
+      .sort((a, b) => b.level - a.level)
+      .map((floor) => ({
+        level: floor.level,
+        nodes: floor.nodes
+          .filter(
+            (node) =>
+              NODE_TYPES_FOR_GRAPH.has(node.type) && !HIDDEN_GRAPH_NODE_IDS.has(node.id)
+          )
+          .sort((a, b) => a.x - b.x),
+      }));
+  }, [building]);
 
-  const projectedNodes: ProjectedNode[] = useMemo(() => {
-    if (!floor || !floor.nodes.length) return [];
-    const nodes = floor.nodes;
-    const minX = Math.min(...nodes.map((node) => node.x));
-    const maxX = Math.max(...nodes.map((node) => node.x));
-    const minY = Math.min(...nodes.map((node) => node.y));
-    const maxY = Math.max(...nodes.map((node) => node.y));
+  const pathSet = useMemo(() => new Set(pathNodeIds), [pathNodeIds]);
+  const showOutsideStart = currentNodeId === OUTSIDE_CENTER_NODE_ID;
 
-    const spanX = Math.max(maxX - minX, 1);
-    const spanY = Math.max(maxY - minY, 1);
-    const drawableWidth = Math.max(size.width - padding * 2, 50);
-    const drawableHeight = Math.max(size.height - padding * 2, 50);
-    const scale = Math.min(drawableWidth / spanX, drawableHeight / spanY);
-    const extraX = drawableWidth - spanX * scale;
-    const extraY = drawableHeight - spanY * scale;
-    const offsetX = padding + extraX / 2;
-    const offsetY = padding + extraY / 2;
-
-    return nodes.map((node) => ({
-      node,
-      coord: {
-        x: offsetX + (node.x - minX) * scale,
-        y: offsetY + (node.y - minY) * scale,
-      },
-    }));
-  }, [floor, padding, size.height, size.width]);
-
-  const blueprintShapes = useMemo(() => {
-    if (!projectedNodes.length) return [];
-    const xs = projectedNodes.map((item) => item.coord.x);
-    const ys = projectedNodes.map((item) => item.coord.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const clamp = (value: number, min: number, max: number) =>
-      Math.min(Math.max(value, min), max);
-
-    const shellLeft = padding / 2;
-    const shellTop = padding / 2;
-    const shellWidth = size.width - padding;
-    const shellHeight = size.height - padding;
-
-    const hallPadding = 28;
-    const hallLeft = clamp(
-      minX - hallPadding,
-      shellLeft + 12,
-      shellLeft + shellWidth - 120
-    );
-    const hallTop = clamp(
-      minY - hallPadding,
-      shellTop + 12,
-      shellTop + shellHeight - 120
-    );
-    const hallWidth = clamp(
-      (maxX - minX) + hallPadding * 2,
-      140,
-      shellWidth - 24
-    );
-    const hallHeight = clamp(
-      (maxY - minY) + hallPadding * 2,
-      90,
-      shellHeight - 24
-    );
-
-    const shapes: BlueprintShape[] = [
-      {
-        key: "shell",
-        kind: "shell",
-        left: shellLeft,
-        top: shellTop,
-        width: shellWidth,
-        height: shellHeight,
-      },
-      {
-        key: "hall",
-        kind: "hall",
-        left: hallLeft,
-        top: hallTop,
-        width: hallWidth,
-        height: hallHeight,
-        label: `${building?.name ?? "Building"} - L${floorLevel}`,
-      },
-    ];
-
-    const structuralNodes = projectedNodes.filter(({ node }) =>
-      ["room", "stairs", "entrance", "qr"].includes(node.type)
-    );
-
-    structuralNodes.forEach((item) => {
-      const kind: BlueprintShape["kind"] =
-        item.node.type === "stairs"
-          ? "stairs"
-          : item.node.type === "entrance"
-          ? "portal"
-          : "room";
-      const width = kind === "room" ? 64 : 48;
-      const height = kind === "room" ? 54 : 42;
-      const left = clamp(
-        item.coord.x - width / 2,
-        shellLeft + 8,
-        shellLeft + shellWidth - width - 8
-      );
-      const top = clamp(
-        item.coord.y - height / 2,
-        shellTop + 8,
-        shellTop + shellHeight - height - 8
-      );
-
-      shapes.push({
-        key: `${item.node.id}-shape`,
-        kind,
-        left,
-        top,
-        width,
-        height,
-        label: item.node.label,
-        nodeId: item.node.id,
-      });
-    });
-
-    return shapes;
-  
- }, [projectedNodes, size.width, size.height, padding, building?.name, floorLevel]);
-
-  if (!floor) {
+  if (!building || rows.length === 0) {
     return (
-      <View style={[styles.container, { height: size.height }]}>
-        <Text style={styles.warningText}>No indoor map available for this floor yet.</Text>
+      <View style={[styles.emptyWrap, fullScreen && styles.emptyWrapFull]}>
+        <Text style={styles.emptyTitle}>Graph unavailable</Text>
+        <Text style={styles.emptyText}>No graph data found for this building.</Text>
       </View>
     );
   }
 
-  const nodeLookup = new Map(projectedNodes.map((item) => [item.node.id, item]));
-  const pathSet = new Set(pathNodeIds);
-  const pathColor = fullScreen ? "#D62828" : "#0D6EFD";
-  const pathEdgeThickness = fullScreen ? 5 : 4;
-  const pathEdgeSet = new Set<string>();
-  for (let i = 0; i < pathNodeIds.length - 1; i += 1) {
-    const from = pathNodeIds[i];
-    const to = pathNodeIds[i + 1];
-    pathEdgeSet.add(`${from}->${to}`);
-    pathEdgeSet.add(`${to}->${from}`);
-  }
-
-  const renderedEdges: React.ReactNode[] = [];
-  const seenEdges = new Set<string>();
-  floor.edges.forEach((edge) => {
-    const from = nodeLookup.get(edge.from);
-    const to = nodeLookup.get(edge.to);
-    if (!from || !to) return;
-
-    const key =
-      from.node.id < to.node.id
-        ? `${from.node.id}-${to.node.id}`
-        : `${to.node.id}-${from.node.id}`;
-    if (seenEdges.has(key)) return;
-    seenEdges.add(key);
-
-    const dx = to.coord.x - from.coord.x;
-    const dy = to.coord.y - from.coord.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-    const isHighlighted = pathEdgeSet.has(`${from.node.id}->${to.node.id}`);
-
-    renderedEdges.push(
-      <View
-        key={key}
-        style={[
-          styles.edge,
-          {
-            width: length,
-            left: (from.coord.x + to.coord.x) / 2,
-            top: (from.coord.y + to.coord.y) / 2,
-            backgroundColor: isHighlighted ? pathColor : "rgba(13,110,253,0.25)",
-            height: isHighlighted ? pathEdgeThickness : 2,
-            opacity: isHighlighted ? 0.95 : 0.35,
-            transform: [
-              { translateX: -length / 2 },
-              { translateY: -1 },
-              { rotate: `${angle}deg` },
-            ],
-          },
-        ]}
-      />
-    );
-  });
-
   return (
-    <View
-      style={[
-        styles.container,
-        { width: size.width, height: size.height },
-        fullScreen && { borderWidth: 0, borderRadius: 0, backgroundColor: "transparent" },
-      ]}
-    >
-      {blueprintShapes.map((shape) => {
-        const palette: Record<string, { fill: string; stroke: string }> = {
-          shell: { fill: "#e3e9fb", stroke: "#b3c0de" },
-          hall: { fill: "#f5f8ff", stroke: "#97abd8" },
-          room: { fill: "#ffffff", stroke: "#b0c2e9" },
-          stairs: { fill: "#fff4e2", stroke: "#e0b274" },
-          portal: { fill: "#e5f1ff", stroke: "#8bb1ff" },
-        };
-        const set = palette[shape.kind] ?? { fill: "#fff", stroke: "#c5d3f0" };
-        const isCurrentShape = shape.nodeId && currentNodeId === shape.nodeId;
-        const isDestinationShape =
-          shape.nodeId && destinationNodeId === shape.nodeId;
-        const isPathShape = shape.nodeId ? pathSet.has(shape.nodeId) : false;
-        const backgroundColor = isDestinationShape
-          ? "#ffe5df"
-          : isCurrentShape
-          ? "#d8f9ef"
-          : isPathShape
-          ? "#e2eaff"
-          : set.fill;
-        const borderColor = isDestinationShape
-          ? "#f44336"
-          : isCurrentShape
-          ? "#00a86b"
-          : isPathShape
-          ? "#0D6EFD"
-          : set.stroke;
-        return (
-          <View
-            key={shape.key}
-            style={[
-              styles.blueprintShape,
-              {
-                left: shape.left,
-                top: shape.top,
-                width: shape.width,
-                height: shape.height,
-                backgroundColor,
-                borderColor,
-                borderStyle: shape.kind === "shell" ? "dashed" : "solid",
-              },
-            ]}
-          >
-            {shape.kind === "hall" && !!shape.label && (
-              <Text style={styles.hallLabel} numberOfLines={1}>
-                {shape.label}
-              </Text>
-            )}
-            {shape.kind !== "hall" && shape.kind !== "shell" && !!shape.label && (
-              <Text style={styles.blueprintLabel} numberOfLines={1}>
-                {shape.label}
-              </Text>
-            )}
-          </View>
-        );
-      })}
-      {renderedEdges}
-      {projectedNodes.map(({ node, coord }) => {
-        const isCurrent = currentNodeId && node.id === currentNodeId;
-        const isDestination = destinationNodeId && node.id === destinationNodeId;
-        const isOnPath = pathSet.has(node.id);
+    <View style={[styles.container, fullScreen && styles.containerFull]}>
+      <Text style={styles.title}>{building.name}</Text>
+      <Text style={styles.subtitle}>
+        {building.id === "ccs"
+          ? "4th floor at top to 1st floor at bottom"
+          : "Single-floor building graph"}
+      </Text>
 
-        const sizePx = isCurrent || isDestination ? 18 : isOnPath ? 12 : 8;
-        let backgroundColor = "#ffffff";
-        let borderColor = "#8ea8d5";
-
-        if (isDestination) {
-          backgroundColor = "#F44336";
-          borderColor = "#F44336";
-        } else if (isCurrent) {
-          backgroundColor = "#00B56A";
-          borderColor = "#00B56A";
-        } else if (isOnPath) {
-          backgroundColor = pathColor;
-          borderColor = pathColor;
-        }
-
-        return (
-          <View key={node.id}>
-            {isCurrent && fullScreen ? (
-              <View
-                style={[
-                  styles.node,
-                  {
-                    width: 38,
-                    height: 38,
-                    left: coord.x - 19,
-                    top: coord.y - 19,
-                    borderRadius: 19,
-                    borderWidth: 2,
-                    borderColor: "#fff",
-                    backgroundColor: "rgba(0, 42, 122, 0.15)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 20,
-                  },
-                ]}
-              >
-                <View
-                  style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 13,
-                    backgroundColor: "#fff",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 3,
-                    elevation: 5,
-                    transform: [{ rotate: `${heading}deg` }],
-                  }}
-                >
-                  {/* Ionicons navigate points up-right normally, so we offset by -45deg so it points UP at 0deg heading */}
-                  <Ionicons name="navigate" size={18} color="#002A7A" style={{ transform: [{ translateY: -1 }, { translateX: -1 }, { rotate: "-45deg" }] }} />
-                </View>
+      <ScrollView
+        horizontal={false}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.gridContent}
+        bounces={false}
+      >
+        <View style={styles.grid}>
+          {showOutsideStart ? (
+            <View style={styles.outsideWrap}>
+              <View style={[styles.cell, styles.cellCurrent, styles.outsideCell]}>
+                <Text style={[styles.cellText, styles.cellTextOnHighlight]}>out</Text>
               </View>
-            ) : (
-              <View
-                style={[
-                  styles.node,
-                  {
-                    width: sizePx,
-                    height: sizePx,
-                    left: coord.x - sizePx / 2,
-                    top: coord.y - sizePx / 2,
-                    borderColor,
-                    backgroundColor,
-                    zIndex: isCurrent || isDestination ? 15 : isOnPath ? 10 : 1,
-                  },
-                ]}
-              />
-            )}
-            {isCurrent && fullScreen && (
-              <Text
-                style={[
-                  styles.youAreHere,
-                  {
-                    left: coord.x - 38,
-                    top: coord.y - 46,
-                  },
-                ]}
-              >
-                You are here
-              </Text>
-            )}
-            {(isOnPath || isCurrent || isDestination) && (
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.nodeLabel,
-                  {
-                    left: coord.x + 8,
-                    top: coord.y - 6,
-                    color: isDestination ? "#c62828" : "#0b489d",
-                  },
-                ]}
-              >
-                {node.label}
-              </Text>
-            )}
-          </View>
-        );
-      })}
+            </View>
+          ) : null}
+
+          {rows.map((row) => {
+            const rowHasDialog = row.nodes.some((node) => node.id === dialogNodeId);
+            const isTopRow = row.level === rows[0]?.level;
+
+            return (
+            <View
+              key={`floor-${row.level}`}
+              style={[styles.rowWrap, rowHasDialog && styles.rowWrapActive]}
+            >
+              <View style={styles.floorBadge}>
+                <Text style={styles.floorBadgeText}>L{row.level}</Text>
+              </View>
+
+              <View style={styles.rowLine}>
+                {row.nodes.map((node) => {
+                  const isCurrent = node.id === currentNodeId;
+                  const isDestination = node.id === destinationNodeId;
+                  const isPath = pathSet.has(node.id);
+                  const isStairs = node.type === "stairs";
+                  const isPortal = node.type === "entrance";
+                  const showDialog = dialogNodeId === node.id;
+                  const isMcrNode = node.id.includes("_mcr");
+                  const isFirstFloorSmall =
+                    building.id === "ccs" &&
+                    row.level === 1 &&
+                    [
+                      "ccs_f1_r1",
+                      "ccs_f1_offices",
+                      "ccs_f1_canteen",
+                      "ccs_f1_r2",
+                      "ccs_f1_r4",
+                      "ccs_f1_r5",
+                    ].includes(node.id);
+
+                  return (
+                    <Pressable
+                      key={node.id}
+                      onPress={() => setDialogNodeId((prev) => (prev === node.id ? null : node.id))}
+                      style={[
+                        styles.cell,
+                        isFirstFloorSmall && styles.cellSmall,
+                        isStairs && styles.cellStairs,
+                        isPortal && styles.cellPortal,
+                        isPath && styles.cellPath,
+                        isCurrent && styles.cellCurrent,
+                        isDestination && styles.cellDestination,
+                        showDialog && styles.cellDialogAnchor,
+                      ]}
+                    >
+                      {showDialog ? (
+                        <View
+                          style={[
+                            styles.nodeDialog,
+                            isTopRow && styles.nodeDialogBelow,
+                            isMcrNode && styles.nodeDialogMcr,
+                            isTopRow && isMcrNode && styles.nodeDialogMcrBelow,
+                          ]}
+                        >
+                          <Text style={styles.nodeDialogText}>{node.label}</Text>
+                          <View
+                            style={[
+                              styles.nodeDialogArrow,
+                              isTopRow && styles.nodeDialogArrowBelow,
+                              isMcrNode && styles.nodeDialogArrowMcr,
+                              isTopRow && isMcrNode && styles.nodeDialogArrowMcrBelow,
+                            ]}
+                          />
+                        </View>
+                      ) : null}
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.cellText,
+                          styles.cellTextSmall,
+                          (isCurrent || isDestination) && styles.cellTextOnHighlight,
+                        ]}
+                      >
+                        {getGraphLabel(node)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 1,
-    borderColor: "#dfe7fb",
+    width: "100%",
     borderRadius: 18,
-    backgroundColor: "#f8fbff",
-    marginBottom: 8,
-    overflow: "hidden",
-  },
-  edge: {
-    position: "absolute",
-    borderRadius: 2,
-  },
-  node: {
-    position: "absolute",
-    borderRadius: 20,
-    borderWidth: 2,
-  },
-  nodeLabel: {
-    position: "absolute",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  warningText: {
-    color: "#6b84b7",
-    textAlign: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  blueprintShape: {
-    position: "absolute",
-    borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderColor: "#d5e2fb",
+    backgroundColor: "#f7faff",
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
-  blueprintLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#0b489d",
+  containerFull: {
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: "#E3EAFD",
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 10,
   },
-  hallLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#0b489d",
-  },
-  youAreHere: {
-    position: "absolute",
-    fontSize: 11,
-    fontWeight: "800",
+  title: {
     color: "#002A7A",
-    letterSpacing: 0.2,
-    textTransform: "uppercase",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  subtitle: {
+    color: "#5c79ac",
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  gridContent: {
+    width: "100%",
+  },
+  grid: {
+    gap: 8,
+    marginTop: 8,
+    alignItems: "center",
+  },
+  rowWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    width: "100%",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  rowWrapActive: {
+    zIndex: 40,
+    elevation: 20,
+  },
+  floorBadge: {
+    width: 35,
+    borderRadius: 10,
+    backgroundColor: "#002A7A",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  floorBadgeText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  rowLine: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    flex: 1,
+    minHeight: 48,
+    gap: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    overflow: "visible",
+  },
+  cell: {
+    width: 35,
+    minWidth: 35,
+    maxWidth: 35,
+    minHeight: 35,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#c6d7f8",
+    backgroundColor: "#ffffff",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 2,
+    paddingVertical: 8,
+    position: "relative",
+    overflow: "visible",
+  },
+  cellDialogAnchor: {
+    zIndex: 60,
+    elevation: 30,
+  },
+  cellSmall: {
+    width: 22,
+    minWidth: 22,
+    maxWidth: 22,
+  },
+  cellStairs: {
+    backgroundColor: "#fff4e0",
+    borderColor: "#e4bb78",
+  },
+  cellPortal: {
+    backgroundColor: "#e6f2ff",
+    borderColor: "#7ab0f0",
+  },
+  cellPath: {
+    borderColor: "#20a35a",
+    borderWidth: 1.5,
+    backgroundColor: "#e8f9ef",
+  },
+  cellCurrent: {
+    backgroundColor: "#00A86B",
+    borderColor: "#008a58",
+  },
+  cellDestination: {
+    backgroundColor: "#D62828",
+    borderColor: "#b61e1e",
+  },
+  cellText: {
+    color: "#163b79",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  cellTextSmall: {
+    fontSize: 11,
+  },
+  cellTextOnHighlight: {
+    color: "#ffffff",
+  },
+  nodeDialog: {
+    position: "absolute",
+    bottom: "100%",
+    marginBottom: 8,
+    left: "50%",
+    transform: [{ translateX: -62 }],
+    width: 124,
+    backgroundColor: "rgba(18, 27, 46, 0.92)",
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    zIndex: 120,
+    elevation: 40,
+  },
+  nodeDialogMcr: {
+    transform: [{ translateX: -84 }],
+  },
+  nodeDialogBelow: {
+    top: "100%",
+    bottom: undefined,
+    marginTop: 8,
+    marginBottom: 0,
+  },
+  nodeDialogMcrBelow: {
+    transform: [{ translateX: -84 }],
+  },
+  nodeDialogText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  nodeDialogArrow: {
+    position: "absolute",
+    bottom: -6,
+    left: "50%",
+    marginLeft: -6,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "rgba(18, 27, 46, 0.92)",
+  },
+  nodeDialogArrowBelow: {
+    top: -6,
+    bottom: undefined,
+    borderTopWidth: 0,
+    borderBottomWidth: 6,
+    borderTopColor: "transparent",
+    borderBottomColor: "rgba(18, 27, 46, 0.92)",
+  },
+  nodeDialogArrowMcr: {
+    marginLeft: 16,
+  },
+  nodeDialogArrowMcrBelow: {
+    marginLeft: 16,
+  },
+  outsideWrap: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  outsideCell: {
+    width: 64,
+    minWidth: 64,
+    maxWidth: 64,
+    paddingVertical: 7,
+  },
+  emptyWrap: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#d5e2fb",
+    backgroundColor: "#f7faff",
+    padding: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyWrapFull: {
+    flex: 1,
+    borderWidth: 0,
+    borderRadius: 0,
+  },
+  emptyTitle: {
+    color: "#002A7A",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  emptyText: {
+    color: "#5c79ac",
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center",
   },
 });

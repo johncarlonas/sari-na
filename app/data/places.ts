@@ -14,7 +14,7 @@ const DEFAULT_COORDS: [number, number] = [13.405669, 123.377169];
 
 const BUILDING_ANCHORS: Record<string, [number, number]> = {
   ccs: [13.40565, 123.37707],
-  annex: [13.406159, 123.377347],
+  annex: [13.40521, 123.3776],
 };
 
 const INDOOR_NODE_TYPES = new Set(["room", "entrance"]);

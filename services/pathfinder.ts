@@ -6,14 +6,11 @@ export const Pathfinder = {
   // IMPORTANT: The value must be ADMISSIBLE (never overestimate the real cost)
   // so that A* is guaranteed to find the optimal path.
   getHeuristic: (nodeA: MapNode, nodeB: MapNode): number => {
-    // If they are in different buildings, use a conservative flat estimate.
-    // The shortest inter-building edge is 220, so 200 keeps the heuristic admissible.
-    if (nodeA.buildingId !== nodeB.buildingId) return 200;
-
-    // If in the same building, we use the x,y coordinates (Euclidean distance)
-    const dx = nodeA.x - nodeB.x;
-    const dy = nodeA.y - nodeB.y;
-    return Math.sqrt(dx * dx + dy * dy);
+    // Node x/y values and edge weights are on different scales.
+    // Returning 0 degrades A* to Dijkstra, which guarantees optimal routes.
+    void nodeA;
+    void nodeB;
+    return 0;
   },
 
   getShortestPath: (startId: string, endId: string, nodes: MapNode[], edges: MapEdge[]): string[] | null => {
