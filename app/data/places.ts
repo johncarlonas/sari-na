@@ -1,4 +1,4 @@
-﻿import { MAP_DATA } from "../../constants/mapData";
+import { MAP_DATA } from "../../constants/mapData";
 
 export type Place = {
   id: string;
@@ -14,7 +14,7 @@ const DEFAULT_COORDS: [number, number] = [13.405669, 123.377169];
 
 const BUILDING_ANCHORS: Record<string, [number, number]> = {
   ccs: [13.40565, 123.37707],
-  annex: [13.40528, 123.37819],
+  chs: [13.40528, 123.37819],
 };
 
 const INDOOR_NODE_TYPES = new Set(["room", "entrance"]);

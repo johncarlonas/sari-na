@@ -5,9 +5,9 @@ const testNavigation = () => {
   console.log("--- Starting Navigation Test ---");
 
   const startNode = "ccs_f4_rise";        // Start at Rise Lab (CCS Floor 4)
-  const endNode = "annex_f1_room101";     // End at Annex Room 101 (cross-building)
+  const endNode = "chs_f1_room101";       // End at CHS Room 101 (cross-building)
 
-  console.log(`Searching path from Rise Lab to Annex Room 101...`);
+  console.log(`Searching path from Rise Lab to CHS Room 101...`);
 
 
   const path = MapService.calculateRoute(startNode, endNode);

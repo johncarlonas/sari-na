@@ -79,7 +79,7 @@ export default function NavigationScreen() {
   }, [allPlaces]);
 
   const destinationNodeId = destinationPlace?.mapNodeId ?? "";
-  const fallbackStartNode = destinationPlace?.buildingId === "annex" ? "ccs_f1_portal_annex" : "ccs_f1_r1";
+  const fallbackStartNode = destinationPlace?.buildingId === "chs" ? "ccs_f1_portal_chs" : "ccs_f1_r1";
   const startNodeId = currentCheckpoint?.nodeId ?? fallbackStartNode;
 
   const pathNodes = useMemo<MapNode[] | null>(() => {
@@ -562,7 +562,7 @@ export default function NavigationScreen() {
                 <View style={styles.emptyWrap}>
                   <Text style={styles.emptyTitle}>Pick a mapped destination</Text>
                   <Text style={styles.emptyText}>
-                    Indoor instructions will appear here for CCS and Annex rooms.
+                    Indoor instructions will appear here for CCS and CHS rooms.
                   </Text>
                 </View>
               )}

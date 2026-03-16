@@ -1,4 +1,4 @@
-import { UniversityMap, MapEdge } from '../types/mapTypes';
+import { UniversityMap, MapEdge, MapNode } from '../types/mapTypes';
 
 // Helper to make paths walkable in both directions (A -> B and B -> A)
 const bi = (from: string, to: string, weight: number): MapEdge[] => [
@@ -6,164 +6,217 @@ const bi = (from: string, to: string, weight: number): MapEdge[] => [
   { from: to, to: from, weight }
 ];
 
+const SLOT_SPACING = 110;
+const SLOT_START_X = 80;
+const FLOOR_Y: Record<number, number> = {
+  1: 620,
+  2: 470,
+  3: 320,
+  4: 170,
+};
+
+type LinearNodeConfig = Omit<MapNode, 'x' | 'y' | 'floor' | 'buildingId'> & {
+  offset?: number;
+};
+
+const createLinearRow = (
+  buildingId: string,
+  floorLevel: number,
+  configs: LinearNodeConfig[],
+  options?: { y?: number }
+): MapNode[] => {
+  const fallbackY = 640 - (floorLevel - 1) * 150;
+  const y = options?.y ?? FLOOR_Y[floorLevel] ?? fallbackY;
+  return configs.map((config, index) => ({
+    ...config,
+    x: SLOT_START_X + (config.offset ?? index) * SLOT_SPACING,
+    y,
+    floor: floorLevel,
+    buildingId,
+  }));
+};
+
+const connectSequential = (ids: string[], weight = 10): MapEdge[] =>
+  ids.length < 2 ? [] : ids.slice(1).flatMap((id, index) => bi(ids[index], id, weight));
+
+const ccsFloor1Nodes = createLinearRow('ccs', 1, [
+  { id: 'ccs_f1_wcr', type: 'room', label: "Women's CR", instruction: "Women's CR is closest to the west lobby entrance.", offset: 0 },
+  { id: 'ccs_f1_stairs_w', type: 'stairs', label: 'West Stairs', instruction: 'Use the west stairwell to go up or down floors.', offset: 1 },
+  { id: 'ccs_f1_r1', type: 'room', label: 'CCS Room 1', instruction: 'Proceed to CCS Room 1.', offset: 2 },
+  { id: 'ccs_f1_offices', type: 'room', label: 'SC/JP Office', instruction: 'Student Council / JP office is beside Room 1.', offset: 3 },
+  { id: 'ccs_f1_canteen', type: 'room', label: 'Canteen', instruction: 'Canteen area for CCS.', offset: 4 },
+  { id: 'ccs_f1_r2', type: 'room', label: 'CCS Room 2', instruction: 'Proceed to CCS Room 2.', offset: 5 },
+  { id: 'ccs_f1_r3', type: 'room', label: 'CCS Room 3', instruction: 'Proceed to CCS Room 3.', offset: 5.5 },
+  { id: 'ccs_f1_r4', type: 'room', label: 'CCS Room 4', instruction: 'Proceed to CCS Room 4.', offset: 6 },
+  { id: 'ccs_f1_r5', type: 'room', label: 'CCS Room 5', instruction: 'Proceed to CCS Room 5.', offset: 7 },
+  { id: 'ccs_f1_portal_chs', type: 'entrance', label: 'CHS Walkway', instruction: 'Exit here to reach the College of Health Sciences walkway.', offset: 7.6 },
+  { id: 'ccs_f1_stairs_e', type: 'stairs', label: 'East Stairs', instruction: 'Use the east stairwell beside the CHS walkway.', offset: 8.5 },
+  { id: 'ccs_f1_mcr', type: 'room', label: "Men's CR", instruction: "Men's restroom on the east wing.", offset: 9.5 },
+]);
+
+const ccsFloor2Nodes = createLinearRow('ccs', 2, [
+  { id: 'ccs_f2_wcr', type: 'room', label: "Women's CR", instruction: "Women's CR on the second floor.", offset: 0 },
+  { id: 'ccs_f2_stairs_w', type: 'stairs', label: 'West Stairs', instruction: 'West stair landing (2F).', offset: 1 },
+  { id: 'ccs_f2_faculty', type: 'room', label: 'CCS Faculty', instruction: 'Faculty office area.', offset: 2.5 },
+  { id: 'ccs_f2_dean', type: 'room', label: "Dean's Office", instruction: "Dean's Office for CCS.", offset: 3.5 },
+  { id: 'ccs_f2_mac', type: 'room', label: 'Mac Lab', instruction: 'Apple / Mac laboratory.', offset: 4.5 },
+  { id: 'ccs_f2_open', type: 'room', label: 'Open Lab', instruction: 'Open computer laboratory.', offset: 5.5 },
+  { id: 'ccs_f2_stairs_e', type: 'stairs', label: 'East Stairs', instruction: 'East stair landing (2F).', offset: 6.6 },
+  { id: 'ccs_f2_mcr', type: 'room', label: "Men's CR", instruction: "Men's CR on the second floor.", offset: 7.6 },
+]);
+
+const ccsFloor3Nodes = createLinearRow('ccs', 3, [
+  { id: 'ccs_f3_wcr', type: 'room', label: "Women's CR", instruction: "Women's CR on the third floor.", offset: 0 },
+  { id: 'ccs_f3_stairs_w', type: 'stairs', label: 'West Stairs', instruction: 'West stair landing (3F).', offset: 1 },
+  { id: 'ccs_f3_it1', type: 'room', label: 'IT Lab 1', instruction: 'Information Technology Lab 1.', offset: 2.3 },
+  { id: 'ccs_f3_it2', type: 'room', label: 'IT Lab 2', instruction: 'Information Technology Lab 2.', offset: 3.3 },
+  { id: 'ccs_f3_erp', type: 'room', label: 'ERP Lab', instruction: 'Enterprise Resource Planning Lab.', offset: 4.3 },
+  { id: 'ccs_f3_cs', type: 'room', label: 'CS Lab', instruction: 'Computer Science Lab.', offset: 5.3 },
+  { id: 'ccs_f3_stairs_e', type: 'stairs', label: 'East Stairs', instruction: 'East stair landing (3F).', offset: 6.4 },
+  { id: 'ccs_f3_mcr', type: 'room', label: "Men's CR", instruction: "Men's CR on the third floor.", offset: 7.4 },
+]);
+
+const ccsFloor4Nodes = createLinearRow('ccs', 4, [
+  { id: 'ccs_f4_wcr', type: 'room', label: "Women's CR", instruction: "Women's CR on the fourth floor.", offset: 0 },
+  { id: 'ccs_f4_stairs_w', type: 'stairs', label: 'West Stairs', instruction: 'West stair landing (4F).', offset: 1 },
+  { id: 'ccs_f4_air', type: 'room', label: 'Aircode Lab', instruction: 'Head to the Aircode Lab.', offset: 2.2 },
+  { id: 'ccs_f4_lis', type: 'room', label: 'LIS Lab', instruction: 'Head to the LIS Lab.', offset: 3.2 },
+  { id: 'ccs_f4_nas', type: 'room', label: 'NAS Lab', instruction: 'Head to the NAS Lab.', offset: 4.2 },
+  { id: 'ccs_f4_rise', type: 'room', label: 'Rise Lab', instruction: 'Welcome to the Rise Lab.', offset: 5.2 },
+  { id: 'ccs_f4_stairs_e', type: 'stairs', label: 'East Stairs', instruction: 'East stair landing (4F).', offset: 6.3 },
+  { id: 'ccs_f4_mcr', type: 'room', label: "Men's CR", instruction: "Men's CR on the fourth floor.", offset: 7.3 },
+]);
+
+const ccsFloor1Edges: MapEdge[] = [
+  ...connectSequential([
+    'ccs_f1_wcr',
+    'ccs_f1_stairs_w',
+    'ccs_f1_r1',
+    'ccs_f1_offices',
+    'ccs_f1_canteen',
+    'ccs_f1_r2',
+    'ccs_f1_r3',
+    'ccs_f1_r4',
+    'ccs_f1_r5',
+  ]),
+  ...bi('ccs_f1_r5', 'ccs_f1_portal_chs', 8),
+  ...bi('ccs_f1_portal_chs', 'ccs_f1_stairs_e', 8),
+  ...bi('ccs_f1_stairs_e', 'ccs_f1_mcr', 10),
+];
+
+const ccsFloor2Edges: MapEdge[] = connectSequential([
+  'ccs_f2_wcr',
+  'ccs_f2_stairs_w',
+  'ccs_f2_faculty',
+  'ccs_f2_dean',
+  'ccs_f2_mac',
+  'ccs_f2_open',
+  'ccs_f2_stairs_e',
+  'ccs_f2_mcr',
+]);
+
+const ccsFloor3Edges: MapEdge[] = connectSequential([
+  'ccs_f3_wcr',
+  'ccs_f3_stairs_w',
+  'ccs_f3_it1',
+  'ccs_f3_it2',
+  'ccs_f3_erp',
+  'ccs_f3_cs',
+  'ccs_f3_stairs_e',
+  'ccs_f3_mcr',
+]);
+
+const ccsFloor4Edges: MapEdge[] = connectSequential([
+  'ccs_f4_wcr',
+  'ccs_f4_stairs_w',
+  'ccs_f4_air',
+  'ccs_f4_lis',
+  'ccs_f4_nas',
+  'ccs_f4_rise',
+  'ccs_f4_stairs_e',
+  'ccs_f4_mcr',
+]);
+
+const chsFloor1Nodes = createLinearRow(
+  'chs',
+  1,
+  [
+    {
+      id: 'chs_f1_entrance',
+      type: 'entrance',
+      label: 'CHS Entrance',
+      instruction: 'Enter the College of Health Sciences lobby.',
+      offset: 0,
+      lat: 13.40512,
+      lng: 123.37795,
+    },
+    {
+      id: 'chs_f1_room101',
+      type: 'room',
+      label: 'CHS Room 1',
+      instruction: 'Proceed to CHS Room 1.',
+      offset: 1.6,
+      lat: 13.40524,
+      lng: 123.37812,
+    },
+    {
+      id: 'chs_f1_room102',
+      type: 'room',
+      label: 'CHS Room 2',
+      instruction: 'Proceed to CHS Room 2.',
+      offset: 2.8,
+    },
+    {
+      id: 'chs_f1_portal_ccs',
+      type: 'entrance',
+      label: 'CCS Walkway',
+      instruction: 'Follow this portal back to CCS.',
+      offset: 3.6,
+      lat: 13.4053,
+      lng: 123.37825,
+    },
+  ],
+  { y: 540 }
+);
+
+const chsFloor1Edges: MapEdge[] = connectSequential([
+  'chs_f1_entrance',
+  'chs_f1_room101',
+  'chs_f1_room102',
+  'chs_f1_portal_ccs',
+]);
+
 export const MAP_DATA: UniversityMap = {
   buildings: {
     ccs: {
-      id: "ccs",
-      name: "College of Computer Studies",
+      id: 'ccs',
+      name: 'College of Computer Studies',
       floors: [
-        // ==========================================
-        // 1ST FLOOR
-        // ==========================================
-        {
-          level: 1,
-          nodes: [
-            { id: "ccs_f1_wcr", type: "room", label: "Women's CR", instruction: "Women's CR is at the far left.", x: 100, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_stairs_w", type: "stairs", label: "West Stairs", instruction: "Stairs near Women's CR.", x: 200, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_r1", type: "room", label: "Room 1", instruction: "Enter Room 1.", x: 300, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_offices", type: "room", label: "SC/JP Office", instruction: "Offices ahead.", x: 400, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_canteen", type: "room", label: "Canteen", instruction: "Canteen area.", x: 500, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_r2", type: "room", label: "Room 2", instruction: "Enter Room 2.", x: 600, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_r4", type: "room", label: "Room 4", instruction: "Enter Room 4.", x: 700, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_r5", type: "room", label: "Room 5", instruction: "Enter Room 5.", x: 750, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_portal_annex", type: "entrance", label: "Annex Walkway", instruction: "Exit CCS through the annex walkway portal.", x: 820, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_stairs_e", type: "stairs", label: "East Stairs", instruction: "Stairs near Men's CR.", x: 800, y: 500, floor: 1, buildingId: "ccs" },
-            { id: "ccs_f1_mcr", type: "room", label: "Men's CR", instruction: "Men's CR is at the far right.", x: 900, y: 500, floor: 1, buildingId: "ccs" },
-          ],
-          edges: [
-            ...bi("ccs_f1_wcr", "ccs_f1_stairs_w", 10),
-            ...bi("ccs_f1_stairs_w", "ccs_f1_r1", 10),
-            ...bi("ccs_f1_r1", "ccs_f1_offices", 10),
-            ...bi("ccs_f1_offices", "ccs_f1_canteen", 10),
-            ...bi("ccs_f1_canteen", "ccs_f1_r2", 10),
-            ...bi("ccs_f1_r2", "ccs_f1_r4", 10),
-            ...bi("ccs_f1_r4", "ccs_f1_r5", 10),
-            ...bi("ccs_f1_r5", "ccs_f1_portal_annex", 8),
-            ...bi("ccs_f1_portal_annex", "ccs_f1_stairs_e", 8),
-            ...bi("ccs_f1_stairs_e", "ccs_f1_mcr", 10),
-          ]
-        },
-        // ==========================================
-        // 2ND FLOOR
-        // ==========================================
-        {
-          level: 2,
-          nodes: [
-            { id: "ccs_f2_wcr", type: "room", label: "Women's CR", instruction: "Women's CR (2nd Floor).", x: 100, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_stairs_w", type: "stairs", label: "West Stairs", instruction: "West stairs landing.", x: 200, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_faculty", type: "room", label: "CCS Faculty", instruction: "Head to the Faculty Room.", x: 350, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_dean", type: "room", label: "Dean's Office", instruction: "Head to the Dean's Office.", x: 450, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_mac", type: "room", label: "Mac Lab", instruction: "Enter the Mac Lab.", x: 550, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_open", type: "room", label: "Open Lab", instruction: "Enter the Open Lab.", x: 650, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_stairs_e", type: "stairs", label: "East Stairs", instruction: "East stairs landing.", x: 800, y: 400, floor: 2, buildingId: "ccs" },
-            { id: "ccs_f2_mcr", type: "room", label: "Men's CR", instruction: "Men's CR (2nd Floor).", x: 900, y: 400, floor: 2, buildingId: "ccs" },
-          ],
-          edges: [
-            ...bi("ccs_f2_wcr", "ccs_f2_stairs_w", 10),
-            ...bi("ccs_f2_stairs_w", "ccs_f2_faculty", 15),
-            ...bi("ccs_f2_faculty", "ccs_f2_dean", 10),
-            ...bi("ccs_f2_dean", "ccs_f2_mac", 10),
-            ...bi("ccs_f2_mac", "ccs_f2_open", 10),
-            ...bi("ccs_f2_open", "ccs_f2_stairs_e", 15),
-            ...bi("ccs_f2_stairs_e", "ccs_f2_mcr", 10),
-          ]
-        },
-        // ==========================================
-        // 3RD FLOOR
-        // ==========================================
-        {
-          level: 3,
-          nodes: [
-            { id: "ccs_f3_wcr", type: "room", label: "Women's CR", instruction: "Women's CR (3rd Floor).", x: 100, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_stairs_w", type: "stairs", label: "West Stairs", instruction: "West stairs landing.", x: 200, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_it1", type: "room", label: "IT Lab 1", instruction: "Enter IT Lab 1.", x: 300, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_it2", type: "room", label: "IT Lab 2", instruction: "Enter IT Lab 2.", x: 400, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_erp", type: "room", label: "ERP Lab", instruction: "Enter ERP Lab.", x: 500, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_cs", type: "room", label: "CS Lab", instruction: "Enter CS Lab.", x: 600, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_stairs_e", type: "stairs", label: "East Stairs", instruction: "East stairs landing.", x: 800, y: 300, floor: 3, buildingId: "ccs" },
-            { id: "ccs_f3_mcr", type: "room", label: "Men's CR", instruction: "Men's CR (3rd Floor).", x: 900, y: 300, floor: 3, buildingId: "ccs" },
-          ],
-          edges: [
-            ...bi("ccs_f3_wcr", "ccs_f3_stairs_w", 10),
-            ...bi("ccs_f3_stairs_w", "ccs_f3_it1", 10),
-            ...bi("ccs_f3_it1", "ccs_f3_it2", 10),
-            ...bi("ccs_f3_it2", "ccs_f3_erp", 10),
-            ...bi("ccs_f3_erp", "ccs_f3_cs", 10),
-            ...bi("ccs_f3_cs", "ccs_f3_stairs_e", 15),
-            ...bi("ccs_f3_stairs_e", "ccs_f3_mcr", 10),
-          ]
-        },
-        // ==========================================
-        // 4TH FLOOR
-        // ==========================================
-        {
-          level: 4,
-          nodes: [
-            { id: "ccs_f4_wcr", type: "room", label: "Women's CR", instruction: "Women's CR (4th Floor).", x: 100, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_stairs_w", type: "stairs", label: "West Stairs", instruction: "West stairs landing.", x: 200, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_air", type: "room", label: "Aircode", instruction: "Head to Aircode Lab.", x: 300, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_lis", type: "room", label: "LIS Lab", instruction: "Head to LIS Lab.", x: 400, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_nas", type: "room", label: "NAS Lab", instruction: "Head to NAS Lab.", x: 500, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_rise", type: "room", label: "Rise Lab", instruction: "Welcome to Rise Lab.", x: 600, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_stairs_e", type: "stairs", label: "East Stairs", instruction: "East stairs landing.", x: 800, y: 200, floor: 4, buildingId: "ccs" },
-            { id: "ccs_f4_mcr", type: "room", label: "Men's CR", instruction: "Men's CR (4th Floor).", x: 900, y: 200, floor: 4, buildingId: "ccs" },
-          ],
-          edges: [
-            ...bi("ccs_f4_wcr", "ccs_f4_stairs_w", 10),
-            ...bi("ccs_f4_stairs_w", "ccs_f4_air", 10),
-            ...bi("ccs_f4_air", "ccs_f4_lis", 10),
-            ...bi("ccs_f4_lis", "ccs_f4_nas", 10),
-            ...bi("ccs_f4_nas", "ccs_f4_rise", 10),
-            ...bi("ccs_f4_rise", "ccs_f4_stairs_e", 15),
-            ...bi("ccs_f4_stairs_e", "ccs_f4_mcr", 10),
-          ]
-        }
+        { level: 1, nodes: ccsFloor1Nodes, edges: ccsFloor1Edges },
+        { level: 2, nodes: ccsFloor2Nodes, edges: ccsFloor2Edges },
+        { level: 3, nodes: ccsFloor3Nodes, edges: ccsFloor3Edges },
+        { level: 4, nodes: ccsFloor4Nodes, edges: ccsFloor4Edges },
       ],
-      // ==========================================
-      // VERTICAL CONNECTIONS (STAIRS)
-      // ==========================================
       interFloorEdges: [
-        // West Side Stairwell (Moving Up and Down)
-        ...bi("ccs_f1_stairs_w", "ccs_f2_stairs_w", 50),
-        ...bi("ccs_f2_stairs_w", "ccs_f3_stairs_w", 50),
-        ...bi("ccs_f3_stairs_w", "ccs_f4_stairs_w", 50),
-        
-        // East Side Stairwell (Moving Up and Down)
-        ...bi("ccs_f1_stairs_e", "ccs_f2_stairs_e", 50),
-        ...bi("ccs_f2_stairs_e", "ccs_f3_stairs_e", 50),
-        ...bi("ccs_f3_stairs_e", "ccs_f4_stairs_e", 50),
-      ]
-    },
-    annex: {
-      id: "annex",
-      name: "Annex Building",
-      floors: [
-        {
-          level: 1,
-          nodes: [
-            { id: "annex_f1_entrance", type: "entrance", label: "Annex Entrance", instruction: "Enter the Annex building lobby.", x: 200, y: 520, floor: 1, buildingId: "annex", lat: 13.40512, lng: 123.37795 },
-            { id: "annex_f1_hall_a", type: "path", label: "Hallway A", instruction: "Walk through the west hallway.", x: 320, y: 520, floor: 1, buildingId: "annex" },
-            { id: "annex_f1_hall_b", type: "path", label: "Hallway B", instruction: "Continue down the main hallway.", x: 460, y: 520, floor: 1, buildingId: "annex" },
-            { id: "annex_f1_room101", type: "room", label: "Annex Room 101", instruction: "You are beside Annex Room 101.", x: 520, y: 460, floor: 1, buildingId: "annex", lat: 13.40524, lng: 123.37812 },
-            { id: "annex_f1_room102", type: "room", label: "Annex Room 102", instruction: "Annex Room 102 is on the right.", x: 520, y: 580, floor: 1, buildingId: "annex" },
-            { id: "annex_f1_portal_ccs", type: "entrance", label: "CCS Portal", instruction: "Follow the walkway back to CCS.", x: 620, y: 520, floor: 1, buildingId: "annex", lat: 13.4053, lng: 123.37825 }
-          ],
-          edges: [
-            ...bi("annex_f1_entrance", "annex_f1_hall_a", 12),
-            ...bi("annex_f1_hall_a", "annex_f1_hall_b", 10),
-            ...bi("annex_f1_hall_b", "annex_f1_room101", 8),
-            ...bi("annex_f1_hall_b", "annex_f1_room102", 8),
-            ...bi("annex_f1_hall_b", "annex_f1_portal_ccs", 10)
-          ]
-        }
+        ...bi('ccs_f1_stairs_w', 'ccs_f2_stairs_w', 50),
+        ...bi('ccs_f2_stairs_w', 'ccs_f3_stairs_w', 50),
+        ...bi('ccs_f3_stairs_w', 'ccs_f4_stairs_w', 50),
+        ...bi('ccs_f1_stairs_e', 'ccs_f2_stairs_e', 50),
+        ...bi('ccs_f2_stairs_e', 'ccs_f3_stairs_e', 50),
+        ...bi('ccs_f3_stairs_e', 'ccs_f4_stairs_e', 50),
       ],
-      interFloorEdges: []
-    }
-  }, // end of buildings
-
-  // THIS IS THE BRIDGE
+    },
+    chs: {
+      id: 'chs',
+      name: 'College of Health Sciences',
+      floors: [
+        { level: 1, nodes: chsFloor1Nodes, edges: chsFloor1Edges },
+      ],
+      interFloorEdges: [],
+    },
+  },
   interBuildingEdges: [
-    // Portal walkway between CCS and Annex (represents outdoor travel)
-    ...bi("ccs_f1_portal_annex", "annex_f1_portal_ccs", 220)
-  ]
+    // Portal walkway between CCS and CHS (represents outdoor travel)
+    ...bi('ccs_f1_portal_chs', 'chs_f1_portal_ccs', 220),
+  ],
 };

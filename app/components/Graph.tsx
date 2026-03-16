@@ -19,17 +19,6 @@ type ProjectedNode = {
   coord: { x: number; y: number };
 };
 
-type BlueprintShape = {
-  key: string;
-  kind: "shell" | "hall" | "room" | "stairs" | "portal";
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  label?: string;
-  nodeId?: string;
-};
-
 export default function Graph({
   buildingId,
   floorLevel,
@@ -83,105 +72,6 @@ export default function Graph({
       },
     }));
   }, [floor, padding, size.height, size.width]);
-
-  const blueprintShapes = useMemo(() => {
-    if (!projectedNodes.length) return [];
-    const xs = projectedNodes.map((item) => item.coord.x);
-    const ys = projectedNodes.map((item) => item.coord.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    const clamp = (value: number, min: number, max: number) =>
-      Math.min(Math.max(value, min), max);
-
-    const shellLeft = padding / 2;
-    const shellTop = padding / 2;
-    const shellWidth = size.width - padding;
-    const shellHeight = size.height - padding;
-
-    const hallPadding = 28;
-    const hallLeft = clamp(
-      minX - hallPadding,
-      shellLeft + 12,
-      shellLeft + shellWidth - 120
-    );
-    const hallTop = clamp(
-      minY - hallPadding,
-      shellTop + 12,
-      shellTop + shellHeight - 120
-    );
-    const hallWidth = clamp(
-      (maxX - minX) + hallPadding * 2,
-      140,
-      shellWidth - 24
-    );
-    const hallHeight = clamp(
-      (maxY - minY) + hallPadding * 2,
-      90,
-      shellHeight - 24
-    );
-
-    const shapes: BlueprintShape[] = [
-      {
-        key: "shell",
-        kind: "shell",
-        left: shellLeft,
-        top: shellTop,
-        width: shellWidth,
-        height: shellHeight,
-      },
-      {
-        key: "hall",
-        kind: "hall",
-        left: hallLeft,
-        top: hallTop,
-        width: hallWidth,
-        height: hallHeight,
-        label: `${building?.name ?? "Building"} - L${floorLevel}`,
-      },
-    ];
-
-    const structuralNodes = projectedNodes.filter(({ node }) =>
-      ["room", "stairs", "entrance", "qr"].includes(node.type)
-    );
-
-    structuralNodes.forEach((item) => {
-      const kind: BlueprintShape["kind"] =
-        item.node.type === "stairs"
-          ? "stairs"
-          : item.node.type === "entrance"
-          ? "portal"
-          : "room";
-      const width = kind === "room" ? 64 : 48;
-      const height = kind === "room" ? 54 : 42;
-      const left = clamp(
-        item.coord.x - width / 2,
-        shellLeft + 8,
-        shellLeft + shellWidth - width - 8
-      );
-      const top = clamp(
-        item.coord.y - height / 2,
-        shellTop + 8,
-        shellTop + shellHeight - height - 8
-      );
-
-      shapes.push({
-        key: `${item.node.id}-shape`,
-        kind,
-        left,
-        top,
-        width,
-        height,
-        label: item.node.label,
-        nodeId: item.node.id,
-      });
-    });
-
-    return shapes;
-  
- }, [projectedNodes, size.width, size.height, padding, building?.name, floorLevel]);
 
   if (!floor) {
     return (
@@ -254,62 +144,11 @@ export default function Graph({
         fullScreen && { borderWidth: 0, borderRadius: 0, backgroundColor: "transparent" },
       ]}
     >
-      {blueprintShapes.map((shape) => {
-        const palette: Record<string, { fill: string; stroke: string }> = {
-          shell: { fill: "#e3e9fb", stroke: "#b3c0de" },
-          hall: { fill: "#f5f8ff", stroke: "#97abd8" },
-          room: { fill: "#ffffff", stroke: "#b0c2e9" },
-          stairs: { fill: "#fff4e2", stroke: "#e0b274" },
-          portal: { fill: "#e5f1ff", stroke: "#8bb1ff" },
-        };
-        const set = palette[shape.kind] ?? { fill: "#fff", stroke: "#c5d3f0" };
-        const isCurrentShape = shape.nodeId && currentNodeId === shape.nodeId;
-        const isDestinationShape =
-          shape.nodeId && destinationNodeId === shape.nodeId;
-        const isPathShape = shape.nodeId ? pathSet.has(shape.nodeId) : false;
-        const backgroundColor = isDestinationShape
-          ? "#ffe5df"
-          : isCurrentShape
-          ? "#d8f9ef"
-          : isPathShape
-          ? "#e2eaff"
-          : set.fill;
-        const borderColor = isDestinationShape
-          ? "#f44336"
-          : isCurrentShape
-          ? "#00a86b"
-          : isPathShape
-          ? "#0D6EFD"
-          : set.stroke;
-        return (
-          <View
-            key={shape.key}
-            style={[
-              styles.blueprintShape,
-              {
-                left: shape.left,
-                top: shape.top,
-                width: shape.width,
-                height: shape.height,
-                backgroundColor,
-                borderColor,
-                borderStyle: shape.kind === "shell" ? "dashed" : "solid",
-              },
-            ]}
-          >
-            {shape.kind === "hall" && !!shape.label && (
-              <Text style={styles.hallLabel} numberOfLines={1}>
-                {shape.label}
-              </Text>
-            )}
-            {shape.kind !== "hall" && shape.kind !== "shell" && !!shape.label && (
-              <Text style={styles.blueprintLabel} numberOfLines={1}>
-                {shape.label}
-              </Text>
-            )}
-          </View>
-        );
-      })}
+      <View style={styles.floorBadge}>
+        <Text style={styles.floorBadgeText} numberOfLines={1}>
+          {`${building?.name ?? buildingId.toUpperCase()} - L${floorLevel}`}
+        </Text>
+      </View>
       {renderedEdges}
       {projectedNodes.map(({ node, coord }) => {
         const isCurrent = currentNodeId && node.id === currentNodeId;
@@ -452,19 +291,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 20,
   },
-  blueprintShape: {
+  floorBadge: {
     position: "absolute",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 8,
+    top: 12,
+    left: 12,
+    paddingHorizontal: 12,
     paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#e3e9fb",
+    borderWidth: 1,
+    borderColor: "#c5d3f0",
   },
-  blueprintLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#0b489d",
-  },
-  hallLabel: {
+  floorBadgeText: {
     fontSize: 11,
     fontWeight: "700",
     color: "#0b489d",
