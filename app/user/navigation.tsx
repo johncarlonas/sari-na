@@ -80,7 +80,7 @@ export default function NavigationScreen() {
   }, [allPlaces]);
 
   const destinationNodeId = destinationPlace?.mapNodeId ?? "";
-  const fallbackStartNode = destinationPlace?.buildingId === "annex" ? "ccs_f1_portal_annex" : "ccs_f1_r1";
+  const fallbackStartNode = destinationPlace?.buildingId === "chs" ? "ccs_f1_portal_chs" : "ccs_f1_r1";
   const startNodeId = currentCheckpoint?.nodeId ?? fallbackStartNode;
 
   const pathNodes = useMemo<MapNode[] | null>(() => {
@@ -575,6 +575,87 @@ export default function NavigationScreen() {
               </View>
             </View>
             </View>
+
+            <ScrollView
+              style={styles.extraContent}
+              contentContainerStyle={[styles.cardContent, { paddingBottom: 0 }]}
+              nestedScrollEnabled
+              scrollEnabled
+              showsVerticalScrollIndicator={false}
+            >
+              {pathNodes ? (
+                <>
+                  <Text style={styles.sectionHeading}>Turn-by-turn</Text>
+                  {instructionSteps.map((step) => (
+                    <View key={`${step.node.id}-${step.index}`} style={styles.instructionCard}>
+                      <View style={styles.stepNumber}>
+                        <Text style={styles.stepNumberText}>{step.index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.stepTitle}>{step.node.label}</Text>
+                        <Text style={styles.stepInstruction}>{step.node.instruction}</Text>
+                        <Text style={styles.stepMeta}>
+                          {step.buildingName} • Floor {step.node.floor}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              ) : (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyTitle}>Pick a mapped destination</Text>
+                  <Text style={styles.emptyText}>
+                    Indoor instructions will appear here for CCS and CHS rooms.
+                  </Text>
+                </View>
+              )}
+
+              {floorSlices.length > 0 && (
+                <View style={styles.graphSection}>
+                  <Text style={styles.sectionHeading}>Indoor Map Preview</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.floorTabs}
+                  >
+                    {floorSlices.map((slice) => (
+                      <Pressable
+                        key={slice.key}
+                        style={[
+                          styles.floorTab,
+                          activeSlice?.key === slice.key && styles.floorTabActive,
+                        ]}
+                        onPress={() => setActiveFloorKey(slice.key)}
+                      >
+                        <Text
+                          style={[
+                            styles.floorTabText,
+                            activeSlice?.key === slice.key && styles.floorTabTextActive,
+                          ]}
+                        >
+                          {slice.buildingName} • L{slice.floor}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  {activeSlice ? (
+                    <PathStripMap
+                      buildingId={activeSlice.buildingId}
+                      floorLevel={activeSlice.floor}
+                      pathNodeIds={activeSlice.pathNodeIds}
+                      currentNodeId={currentCheckpoint?.nodeId ?? null}
+                      destinationNodeId={destinationNodeId || null}
+                    />
+                  ) : (
+                    <View style={styles.graphPlaceholder}>
+                      <Text style={styles.graphPlaceholderText}>
+                        Select a floor to preview the static route.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
 
           <LinearGradient
             colors={["#1565C0", "#002A7A"]}
