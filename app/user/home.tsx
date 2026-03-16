@@ -19,6 +19,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { getCurrentUserProfile } from "@/services/emailAuthService";
+import { supabase } from "@/services/supabase";
 
 type Params = {
   location?: string;
@@ -38,6 +40,7 @@ export default function HomeScreen() {
   const params = useLocalSearchParams<Params>();
   const [searchFocused, setSearchFocused] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [firstName, setFirstName] = useState('');
   const containerBorder = searchFocused ? '#002A7A' : '#cfdaef';
 
   const [currentLocation, setCurrentLocation] = useState<{location:string;detail:string}|null>(null);
@@ -59,6 +62,29 @@ export default function HomeScreen() {
       if (stored) setCurrentLocation(stored);
     } catch {}
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let mounted = true;
+
+      const loadProfile = async () => {
+        try {
+          const profile = await getCurrentUserProfile();
+          if (!mounted) return;
+          setFirstName(profile?.first_name?.trim() || '');
+        } catch {
+          if (!mounted) return;
+          setFirstName('');
+        }
+      };
+
+      loadProfile();
+
+      return () => {
+        mounted = false;
+      };
+    }, [])
+  );
 
   const recent: Place[] = [
     {
@@ -117,8 +143,9 @@ export default function HomeScreen() {
     }, [showLogoutModal])
   );
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setShowLogoutModal(false);
+    await supabase.auth.signOut();
     try {
       (global as any).currentCheckpoint = null;
       (global as any).currentLocation = null;
@@ -133,7 +160,7 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 90 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greeting}>Good day, John Renzzo!</Text>
+        <Text style={styles.greeting}>Good day, {firstName || 'User'}!</Text>
 
         <Pressable
           onPress={() => {

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing, Keyboard, BackHandler } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, Pressable, TextInput, Modal, ScrollView, Animated, Easing, Keyboard, BackHandler, Linking } from 'react-native';
 // @ts-ignore: no types available locally
 import MaskedView from '@react-native-masked-view/masked-view';
 import { useRouter } from 'expo-router';
@@ -7,17 +7,30 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getCurrentUserProfile, updateCurrentUserName } from '@/services/emailAuthService';
+import { supabase } from '@/services/supabase';
 
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [userName, setUserName] = useState('John Renzzo Montenegro');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [reportError, setReportError] = useState('');
+  const [reportTitle, setReportTitle] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
   // editing pieces
   const [tempFirst, setTempFirst] = useState('');
   const [tempLast, setTempLast] = useState('');
+  const fullName = `${firstName} ${lastName}`.trim();
 
   // animation values for menu item entrance
   const menuAnims = useRef<Animated.Value[]>([]);
@@ -26,6 +39,16 @@ export default function Profile() {
       .fill(null)
       .map(() => new Animated.Value(0));
   }
+
+  useEffect(() => {
+    if (!showToast) return;
+    const timer = setTimeout(() => {
+      setShowToast(false);
+      setToastMessage('');
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [showToast]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -53,26 +76,83 @@ export default function Profile() {
     return (first + last).toUpperCase();
   };
 
-  const toTitleCase = (s: string) =>
-    s
-      .toLowerCase()
-      .split(' ')
-      .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
-      .join(' ');
-
-  const handleSaveName = () => {
-    // combine first and last, trim each, ignore empty
-    const first = tempFirst.trim();
-    const last = tempLast.trim();
-    let combined = '';
-    if (first && last) combined = `${first} ${last}`;
-    else combined = first || last;
-    setUserName(combined);
-    setIsEditModalVisible(false);
+  const handleOpenEditModal = () => {
+    setTempFirst(firstName);
+    setTempLast(lastName);
+    setEditError('');
+    setIsEditModalVisible(true);
   };
 
-  const handleLogout = () => {
+  const handleSaveName = async () => {
+    const first = tempFirst.trim();
+    const last = tempLast.trim();
+
+    if (!first || !last) {
+      setEditError('First name and last name are required');
+      return;
+    }
+
+    setIsUpdatingName(true);
+    setEditError('');
+    try {
+      await updateCurrentUserName(first, last);
+      setFirstName(first);
+      setLastName(last);
+      setIsEditModalVisible(false);
+      setToastMessage('Profile updated');
+      setShowToast(true);
+    } catch (error: any) {
+      setEditError(error?.message ?? 'Failed to update profile');
+    } finally {
+      setIsUpdatingName(false);
+    }
+  };
+
+  const handleOpenReportModal = () => {
+    setReportError('');
+    setReportTitle('');
+    setReportDescription('');
+    setIsReportModalVisible(true);
+  };
+
+  const handleSendReport = async () => {
+    const title = reportTitle.trim();
+    const description = reportDescription.trim();
+
+    if (!title || !description) {
+      setReportError('Title and description are required');
+      return;
+    }
+
+    setIsSendingReport(true);
+    setReportError('');
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      setIsReportModalVisible(false);
+      setReportTitle('');
+      setReportDescription('');
+      setToastMessage('Report sent!');
+      setShowToast(true);
+    } finally {
+      setIsSendingReport(false);
+    }
+  };
+
+  const handleSupportDevs = async () => {
+    const supportUrl = 'https://buymeacoffee.com/sarinapp';
+    const canOpen = await Linking.canOpenURL(supportUrl);
+    if (canOpen) {
+      await Linking.openURL(supportUrl);
+      return;
+    }
+
+    setToastMessage('Support link unavailable');
+    setShowToast(true);
+  };
+
+  const handleLogout = async () => {
     setIsLogoutModalVisible(false);
+    await supabase.auth.signOut();
     try {
       (global as any).currentCheckpoint = null;
       (global as any).currentLocation = null;
@@ -82,7 +162,39 @@ export default function Profile() {
 
   useFocusEffect(
     React.useCallback(() => {
+      let mounted = true;
+
+      const loadProfile = async () => {
+        try {
+          const profile = await getCurrentUserProfile();
+          if (!mounted || !profile) return;
+          setFirstName(profile.first_name ?? '');
+          setLastName(profile.last_name ?? '');
+        } catch {
+          if (!mounted) return;
+          setFirstName('');
+          setLastName('');
+        }
+      };
+
+      loadProfile();
+
       const onBackPress = () => {
+        if (isEditModalVisible) {
+          setIsEditModalVisible(false);
+          return true;
+        }
+
+        if (isAboutModalVisible) {
+          setIsAboutModalVisible(false);
+          return true;
+        }
+
+        if (isReportModalVisible) {
+          setIsReportModalVisible(false);
+          return true;
+        }
+
         if (isLogoutModalVisible) {
           setIsLogoutModalVisible(false);
           return true;
@@ -91,8 +203,11 @@ export default function Profile() {
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => sub.remove();
-    }, [isLogoutModalVisible, router])
+      return () => {
+        mounted = false;
+        sub.remove();
+      };
+    }, [isAboutModalVisible, isEditModalVisible, isLogoutModalVisible, isReportModalVisible, router])
   );
 
   return (
@@ -110,7 +225,7 @@ export default function Profile() {
             >
               <View style={styles.avatarInner}>
                 <MaskedView
-                  maskElement={<Text style={styles.avatarText}>{getInitials(userName)}</Text>}
+                  maskElement={<Text style={styles.avatarText}>{getInitials(fullName || 'User')}</Text>}
                   style={styles.maskedContainer}
                 >
                   <LinearGradient
@@ -122,7 +237,7 @@ export default function Profile() {
                 </MaskedView>
               </View>
             </LinearGradient>
-            <Text style={styles.userName}>{userName.toUpperCase()}</Text>
+            <Text style={styles.userName}>{(fullName || 'USER').toUpperCase()}</Text>
         </View>
 
           <Pressable onPress={() => setIsAboutModalVisible(true)} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
@@ -145,59 +260,65 @@ export default function Profile() {
             </Animated.View>
           </Pressable>
 
-          <Animated.View style={[styles.menuCard, styles.menuAnim, {
-            opacity: menuAnims.current[1],
-            transform: [{
-              translateY: menuAnims.current[1].interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0],
-              }),
-            }],
-            marginBottom: 10,
-          }]}
+          <Pressable onPress={handleOpenEditModal} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
+            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+              opacity: menuAnims.current[1],
+              transform: [{
+                translateY: menuAnims.current[1].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              }],
+              marginBottom: 10,
+            }]}
+              >
+              <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.menuIconBox}>
+                <MaterialCommunityIcons name="square-edit-outline" size={24} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.menuText}>Edit Profile</Text>
+              <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
+            </Animated.View>
+          </Pressable>
+
+          <Pressable onPress={handleSupportDevs} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
+            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+              opacity: menuAnims.current[2],
+              transform: [{
+                translateY: menuAnims.current[2].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              }],
+              marginBottom: 10,
+            }]}
             >
-            <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.menuIconBox}>
-              <MaterialCommunityIcons name="square-edit-outline" size={24} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.menuText}>Edit Profile</Text>
-            <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
-          </Animated.View>
+              <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.menuIconBox}>
+                <Feather name="heart" size={22} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.menuText}>Support Devs</Text>
+              <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
+            </Animated.View>
+          </Pressable>
 
-          <Animated.View style={[styles.menuCard, styles.menuAnim, {
-            opacity: menuAnims.current[2],
-            transform: [{
-              translateY: menuAnims.current[2].interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0],
-              }),
-            }],
-            marginBottom: 10,
-          }]}
-          >
-            <LinearGradient colors={['#10B981', '#059669']} style={styles.menuIconBox}>
-              <Feather name="key" size={22} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.menuText}>Change Password</Text>
-            <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
-          </Animated.View>
-
-          <Animated.View style={[styles.menuCard, styles.menuAnim, {
-            opacity: menuAnims.current[3],
-            transform: [{
-              translateY: menuAnims.current[3].interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0],
-              }),
-            }],
-            marginBottom: 10,
-          }]}
-          >
-            <LinearGradient colors={['#F59E0B', '#D97706']} style={styles.menuIconBox}>
-              <Feather name="heart" size={22} color="#fff" />
-            </LinearGradient>
-            <Text style={styles.menuText}>Support Devs</Text>
-            <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
-          </Animated.View>
+          <Pressable onPress={handleOpenReportModal} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
+            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+              opacity: menuAnims.current[3],
+              transform: [{
+                translateY: menuAnims.current[3].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              }],
+              marginBottom: 10,
+            }]}
+            >
+              <LinearGradient colors={['#10B981', '#059669']} style={styles.menuIconBox}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={24} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.menuText}>Report Issue</Text>
+              <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
+            </Animated.View>
+          </Pressable>
 
           <Pressable style={[styles.logoutButton, {marginBottom: 10}]} onPress={() => setIsLogoutModalVisible(true)}>
             <LinearGradient
@@ -213,39 +334,124 @@ export default function Profile() {
 
       <Modal
         visible={isEditModalVisible}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setIsEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Name</Text>
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsEditModalVisible(false)}>
+          <View style={[styles.modalCard, styles.actionModalCard]} pointerEvents="box-none">
+            <Text style={styles.modalTitleCentered}>Edit Profile</Text>
+
             <Text style={styles.modalFieldLabel}>First Name</Text>
             <TextInput
               style={styles.modalInput}
               value={tempFirst}
               onChangeText={setTempFirst}
-              placeholder="First"
-              placeholderTextColor="#999"
+              placeholder="Enter first name"
+              placeholderTextColor="#7D95C7"
             />
+
             <Text style={styles.modalFieldLabel}>Last Name</Text>
             <TextInput
               style={styles.modalInput}
               value={tempLast}
               onChangeText={setTempLast}
-              placeholder="Last"
-              placeholderTextColor="#999"
+              placeholder="Enter last name"
+              placeholderTextColor="#7D95C7"
             />
-            <View style={styles.modalButtons}>
-              <Pressable style={styles.modalButtonCancel} onPress={() => setIsEditModalVisible(false)}>
-                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.modalButtonSave} onPress={handleSaveName}>
-                <Text style={styles.modalButtonTextSave}>Save</Text>
+
+            {!!editError && <Text style={styles.editErrorText}>{editError}</Text>}
+
+            <View style={styles.editActionRow}>
+              <LinearGradient
+                colors={["#1565C0", "#002A7A"]}
+                style={styles.logoutCancelWrapper}
+              >
+                <Pressable
+                  style={styles.logoutCancelButton}
+                  onPress={() => setIsEditModalVisible(false)}
+                >
+                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                </Pressable>
+              </LinearGradient>
+
+              <Pressable style={styles.editUpdateButton} onPress={handleSaveName} disabled={isUpdatingName}>
+                <LinearGradient
+                  colors={["#1565C0", "#002A7A"]}
+                  style={styles.editUpdateGradient}
+                >
+                  {isUpdatingName ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.editUpdateText}>Update</Text>
+                  )}
+                </LinearGradient>
               </Pressable>
             </View>
           </View>
-        </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={isReportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsReportModalVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsReportModalVisible(false)}>
+          <View style={[styles.modalCard, styles.actionModalCard]} pointerEvents="box-none">
+            <Text style={styles.modalTitleCentered}>Report Issue</Text>
+
+            <Text style={styles.modalFieldLabel}>What to report</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={reportTitle}
+              onChangeText={setReportTitle}
+              placeholder="Issue title"
+              placeholderTextColor="#7D95C7"
+            />
+
+            <Text style={styles.modalFieldLabel}>Description</Text>
+            <TextInput
+              style={[styles.modalInput, styles.reportDescriptionInput]}
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              placeholder="Describe the issue in detail"
+              placeholderTextColor="#7D95C7"
+              multiline
+              textAlignVertical="top"
+            />
+
+            {!!reportError && <Text style={styles.editErrorText}>{reportError}</Text>}
+
+            <View style={styles.editActionRow}>
+              <LinearGradient
+                colors={["#1565C0", "#002A7A"]}
+                style={styles.logoutCancelWrapper}
+              >
+                <Pressable
+                  style={styles.logoutCancelButton}
+                  onPress={() => setIsReportModalVisible(false)}
+                >
+                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                </Pressable>
+              </LinearGradient>
+
+              <Pressable style={styles.editUpdateButton} onPress={handleSendReport} disabled={isSendingReport}>
+                <LinearGradient
+                  colors={["#1565C0", "#002A7A"]}
+                  style={styles.editUpdateGradient}
+                >
+                  {isSendingReport ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.editUpdateText}>Send</Text>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
       </Modal>
 
       {/* about dialog */}
@@ -301,7 +507,7 @@ export default function Profile() {
         onRequestClose={() => setIsLogoutModalVisible(false)}
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setIsLogoutModalVisible(false)}>
-          <View style={styles.modalCard} pointerEvents="box-none">
+          <View style={[styles.modalCard, styles.actionModalCard]} pointerEvents="box-none">
             <Text style={styles.modalTitleCentered}>Logout</Text>
             <Text style={styles.modalTextCentered}>Are you sure you want to log out?</Text>
 
@@ -330,6 +536,12 @@ export default function Profile() {
           </View>
         </Pressable>
       </Modal>
+
+      {showToast && !!toastMessage && (
+        <View style={styles.toastContainer} pointerEvents="none">
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -479,6 +691,9 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
     zIndex: 1,
   },
+  actionModalCard: {
+    paddingBottom: 20,
+  },
   modalPrimary: {
     height: 50,
     borderRadius: 13,
@@ -522,7 +737,7 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   logoutCancelButton: {
-    height: 50,
+    height: 44,
     borderRadius: 30,
     backgroundColor: '#ffffff',
     alignItems: 'center',
@@ -557,14 +772,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalInput: {
+    height: 50,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
-    color: '#000',
-    textTransform: 'uppercase',
+    borderColor: '#cfdaf0',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    fontSize: 15,
+    marginBottom: 12,
+    color: '#002A7A',
+  },
+  reportDescriptionInput: {
+    height: 120,
+    paddingTop: 12,
   },
   modalFieldLabel: {
     fontSize: 14,
@@ -600,6 +820,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  editErrorText: {
+    color: '#D62828',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  editActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  editUpdateButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 30,
+    overflow: 'hidden',
+  },
+  editUpdateGradient: {
+    flex: 1,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editUpdateText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  toastContainer: {
+    position: 'absolute',
+    left: 70,
+    right: 70,
+    top: 120,
+    backgroundColor: 'rgba(17, 62, 148, 0.95)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    zIndex: 999,
+    elevation: 20,
+  },
+  toastText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
   aboutText: {
     fontSize: 14,

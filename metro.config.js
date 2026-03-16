@@ -4,8 +4,7 @@ const defaultConfig = getDefaultConfig(__dirname);
 
 // Metro for React Native / Expo doesn't include Node core modules.
 // Some Supabase dependencies (like ws) import "stream" which isn't available.
-// Provide browser-friendly polyfills via node-libs-react-native and stream-browserify.
-const nodeLibs = require('node-libs-react-native');
+// Keep the polyfill surface minimal to avoid native module issues in release builds.
 
 defaultConfig.resolver.unstable_conditionNames = [
   'react-native',
@@ -15,7 +14,6 @@ defaultConfig.resolver.unstable_conditionNames = [
 
 defaultConfig.resolver.extraNodeModules = {
   ...(defaultConfig.resolver.extraNodeModules || {}),
-  ...nodeLibs,
   // Ensure stream uses a browser-friendly implementation.
   stream: require.resolve('stream-browserify'),
 };

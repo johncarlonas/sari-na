@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import {
 	ActivityIndicator,
 	Animated,
@@ -22,10 +24,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
 	checkEmailExistsInUsers,
 	sendOtpToEmail,
+	syncCurrentUserProfileFromAuth,
 	touchUserLastLogin,
 	upsertSignupProfile,
 	verifyEmailOtp,
 } from "@/services/emailAuthService";
+import { supabase } from "@/services/supabase";
+
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = "signup" | "login";
 type FieldErrors = {
@@ -45,6 +51,8 @@ export default function LoginSignupScreen() {
 	const [isSwitching, setIsSwitching] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+	const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+	const [isSessionChecking, setIsSessionChecking] = useState(true);
 	const [authError, setAuthError] = useState("");
 	const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 	const [otpError, setOtpError] = useState("");
@@ -148,6 +156,44 @@ export default function LoginSignupScreen() {
 
 		return nextErrors;
 	};
+
+	useEffect(() => {
+		let mounted = true;
+
+		const checkExistingSession = async () => {
+			try {
+				const {
+					data: { session },
+				} = await supabase.auth.getSession();
+
+				if (!mounted) return;
+				if (session) {
+					router.replace("/user/home");
+					return;
+				}
+			} finally {
+				if (mounted) {
+					setIsSessionChecking(false);
+				}
+			}
+		};
+
+		checkExistingSession();
+
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((event, session) => {
+			if (!mounted) return;
+			if (event === "SIGNED_IN" && session) {
+				router.replace("/user/home");
+			}
+		});
+
+		return () => {
+			mounted = false;
+			subscription.unsubscribe();
+		};
+	}, [router]);
 
 	useEffect(() => {
 		if (!otpModalVisible) return;
@@ -282,6 +328,70 @@ export default function LoginSignupScreen() {
 		}
 	};
 
+	const handleGoogleAuth = async () => {
+		if (isGoogleSubmitting) return;
+		setAuthError("");
+		setOtpError("");
+		setIsGoogleSubmitting(true);
+
+		try {
+			const returnUrl = Linking.createURL("auth/callback");
+			const redirectTo = returnUrl;
+
+			const { data, error } = await supabase.auth.signInWithOAuth({
+				provider: "google",
+				options: {
+					redirectTo,
+					skipBrowserRedirect: true,
+				},
+			});
+
+			if (error) {
+				throw error;
+			}
+
+			if (!data?.url) {
+				throw new Error("Google sign-in URL is missing");
+			}
+
+			const authResult = await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
+
+			if (authResult.type !== "success" || !authResult.url) {
+				if (authResult.type !== "dismiss" && authResult.type !== "cancel") {
+					setAuthError("Google sign-in was not completed");
+				}
+				return;
+			}
+
+			const callbackUrl = authResult.url;
+			const hashParams = callbackUrl.includes("#") ? callbackUrl.split("#")[1] : "";
+			const params = new URLSearchParams(hashParams);
+
+			const accessToken = params.get("access_token");
+			const refreshToken = params.get("refresh_token");
+
+			if (!accessToken || !refreshToken) {
+				throw new Error("Google session tokens are missing");
+			}
+
+			const { error: sessionError } = await supabase.auth.setSession({
+				access_token: accessToken,
+				refresh_token: refreshToken,
+			});
+
+			if (sessionError) {
+				throw sessionError;
+			}
+
+			await syncCurrentUserProfileFromAuth();
+			router.replace("/user/home");
+		} catch (error: any) {
+			setAuthError(error?.message ?? "Google sign-in failed");
+		} finally {
+			setIsGoogleSubmitting(false);
+		}
+	};
+
 	useFocusEffect(
 		React.useCallback(() => {
 			const onBackPress = () => true;
@@ -289,6 +399,14 @@ export default function LoginSignupScreen() {
 			return () => sub.remove();
 		}, [])
 	);
+
+	if (isSessionChecking) {
+		return (
+			<View style={styles.sessionCheckingWrap}>
+				<ActivityIndicator size="large" color="#ffffff" />
+			</View>
+		);
+	}
 
 	return (
 		<LinearGradient
@@ -446,9 +564,19 @@ export default function LoginSignupScreen() {
 						// end={{ x: 1, y: 0.5 }}
 						style={styles.googleWrapper}
 					>
-						<Pressable style={[styles.googleButton, isSwitching && styles.buttonNoShadow]}>
-							<Image source={{uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png'}} style={{width:24, height:24}} />
-							<Text style={styles.googleText}>{isSignup ? "Sign up with Google" : "Login with Google"}</Text>
+						<Pressable
+							style={[styles.googleButton, (isSwitching || isGoogleSubmitting) && styles.buttonNoShadow]}
+							onPress={handleGoogleAuth}
+							disabled={isGoogleSubmitting}
+						>
+							{isGoogleSubmitting ? (
+								<ActivityIndicator size="small" color="#0b489d" />
+							) : (
+								<>
+									<Image source={{uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png'}} style={{width:24, height:24}} />
+									<Text style={styles.googleText}>{isSignup ? "Sign up with Google" : "Login with Google"}</Text>
+								</>
+							)}
 						</Pressable>
 					</LinearGradient>
 
@@ -551,6 +679,12 @@ const styles = StyleSheet.create({
 	},
 	gradientBackground: {
 		flex: 1,
+	},
+	sessionCheckingWrap: {
+		flex: 1,
+		backgroundColor: "#0E4FAE",
+		alignItems: "center",
+		justifyContent: "center",
 	},
 	logo: {
 		width: 170,
