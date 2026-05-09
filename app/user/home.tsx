@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   Pressable,
   ScrollView,
   Image,
@@ -12,26 +11,17 @@ import {
   Keyboard,
   Animated,
   Easing,
-  Modal,
   BackHandler,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { getCurrentUserProfile } from "@/services/emailAuthService";
-import { supabase } from "@/services/supabase";
+import { getDisplayName, getNavigationHistory, type HistoryItem } from "@/services/localUserService";
 
 type Params = {
   location?: string;
   detail?: string;
-};
-
-type Place = {
-  id?: string;
-  title: string;
-  subtitle: string;
-  icon: string;
 };
 
 export default function HomeScreen() {
@@ -39,8 +29,8 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<Params>();
   const [searchFocused, setSearchFocused] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [firstName, setFirstName] = useState('');
+  const [displayName, setDisplayNameState] = useState('');
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const containerBorder = searchFocused ? '#002A7A' : '#cfdaef';
 
   const [currentLocation, setCurrentLocation] = useState<{location:string;detail:string}|null>(null);
@@ -67,54 +57,37 @@ export default function HomeScreen() {
     React.useCallback(() => {
       let mounted = true;
 
-      const loadProfile = async () => {
+      const loadData = async () => {
         try {
-          const profile = await getCurrentUserProfile();
+          const name = await getDisplayName();
+          const hist = await getNavigationHistory();
           if (!mounted) return;
-          setFirstName(profile?.first_name?.trim() || '');
+          setDisplayNameState(name ?? '');
+          setHistory(hist);
         } catch {
           if (!mounted) return;
-          setFirstName('');
+          setDisplayNameState('');
         }
       };
 
-      loadProfile();
+      loadData();
 
-      return () => {
-        mounted = false;
-      };
+      return () => { mounted = false; };
     }, [])
   );
 
-  const recent: Place[] = [
-    {
-      title: "Supply Office",
-      subtitle: "Academic Building III, Floor 1",
-      icon: "map-marker" as const,
-    },
-    {
-      title: "AiRCoDe",
-      subtitle: "Academic Building IV, Floor 4",
-      icon: "map-marker" as const,
-    },
-    {
-      title: "CS Laboratory",
-      subtitle: "Academic Building IV, Floor 3",
-      icon: "map-marker" as const,
-    },
-  ];
-
   // animation values for recent destination cards
   const cardAnims = useRef<Animated.Value[]>([]);
-  if (cardAnims.current.length === 0) {
-    cardAnims.current = recent.map(() => new Animated.Value(0));
-  }
 
   useFocusEffect(
     React.useCallback(() => {
-      // reset and run slide-in animation from left
+      const count = history.length || 3;
+      // ensure enough anim values
+      while (cardAnims.current.length < count) {
+        cardAnims.current.push(new Animated.Value(0));
+      }
       cardAnims.current.forEach(anim => anim.setValue(0));
-      const animations = cardAnims.current.map((anim, i) =>
+      const animations = cardAnims.current.slice(0, count).map((anim, i) =>
         Animated.timing(anim, {
           toValue: 1,
           duration: 600,
@@ -124,34 +97,19 @@ export default function HomeScreen() {
         })
       );
       Animated.stagger(150, animations).start();
+    }, [history])
+  );
+
+  // Block hardware back on home — no logout, just eat the press
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => true;
+      const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => sub.remove();
     }, [])
   );
 
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        if (showLogoutModal) {
-          setShowLogoutModal(false);
-          return true;
-        }
-        setShowLogoutModal(true);
-        return true;
-      };
-
-      const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      return () => sub.remove();
-    }, [showLogoutModal])
-  );
-
-  const handleLogout = async () => {
-    setShowLogoutModal(false);
-    await supabase.auth.signOut();
-    try {
-      (global as any).currentCheckpoint = null;
-      (global as any).currentLocation = null;
-    } catch {}
-    router.replace("/login_signup");
-  };
+  const displayItems = history.length > 0 ? history : [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -160,7 +118,7 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: 90 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.greeting}>Good day, {firstName || 'User'}!</Text>
+        <Text style={styles.greeting}>Good day, {displayName || 'User'}!</Text>
 
         <Pressable
           onPress={() => {
@@ -179,11 +137,8 @@ export default function HomeScreen() {
 
         <Pressable onPress={() => router.push("/user/scan_qr")}>
           <LinearGradient 
-            
             colors={['#002A7A', '#1565C0']} 
             style={styles.scanCard}
-            // start={{ x: 0, y: 0 }}
-            // end={{ x: 1, y: 0.5 }}
           >
             <View style={styles.scanIconBox}>
               <Image source={require("../../assets/images/qr-code.png")} style={styles.scanIcon} />
@@ -207,47 +162,51 @@ export default function HomeScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Recent Destinations</Text>
-        {recent.length === 0 ? (
+        {displayItems.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyTitle}>No recent destinations</Text>
             <Text style={styles.emptyText}>Start navigating to add some</Text>
           </View>
         ) : (
-          recent.map((item, idx) => (
-            <Animated.View
-              key={item.title}
-              style={[
-                styles.destinationCard,
-                {
-                  opacity: cardAnims.current[idx],
-                  transform: [
-                    {
-                      translateX: cardAnims.current[idx].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-50, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-            <View style={styles.destinationIconWrap}>
-              <MaterialCommunityIcons name={item.icon as any} size={23} color="#6d7da4" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.destinationTitle}>{item.title}</Text>
-              <View style={styles.destinationSubRow}>
-                <Text style={styles.destinationSub}>{item.subtitle}</Text>
+          displayItems.map((item, idx) => {
+            if (!cardAnims.current[idx]) {
+              cardAnims.current[idx] = new Animated.Value(1);
+            }
+            return (
+              <Animated.View
+                key={item.id}
+                style={[
+                  styles.destinationCard,
+                  {
+                    opacity: cardAnims.current[idx],
+                    transform: [
+                      {
+                        translateX: cardAnims.current[idx].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-50, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+              <View style={styles.destinationIconWrap}>
+                <MaterialCommunityIcons name={item.icon as any} size={23} color="#6d7da4" />
               </View>
-            </View>
-          </Animated.View>
-        ))) }
+              <View style={{ flex: 1 }}>
+                <Text style={styles.destinationTitle}>{item.title}</Text>
+                <View style={styles.destinationSubRow}>
+                  <Text style={styles.destinationSub}>{item.subtitle}</Text>
+                </View>
+              </View>
+            </Animated.View>
+          )
+          })
+        )}
 
         {/* Quick Tip */}
         <LinearGradient
           colors={["#FF8C5A", "#FF6B35"]}
-          // start={{ x: 0, y: 0 }}
-          // end={{ x: 1, y: 0 }}
           style={styles.quickTipCard}
         >
           <View style={styles.quickTipIconWrapper}>
@@ -264,37 +223,6 @@ export default function HomeScreen() {
         </LinearGradient>
       </ScrollView>
       </TouchableWithoutFeedback>
-
-      <Modal
-        visible={showLogoutModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLogoutModal(false)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowLogoutModal(false)}>
-          <View style={styles.modalCard} pointerEvents="box-none">
-            <Text style={styles.modalTitle}>Logout</Text>
-            <Text style={styles.modalText}>Are you sure you want to log out?</Text>
-
-            <View style={styles.modalActionRow}>
-              <LinearGradient colors={["#1565C0", "#002A7A"]} style={styles.cancelWrapper}>
-                <Pressable
-                  style={styles.cancelButton}
-                  onPress={() => setShowLogoutModal(false)}
-                >
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </Pressable>
-              </LinearGradient>
-
-              <Pressable style={styles.logoutButton} onPress={handleLogout}>
-                <LinearGradient colors={["#1565C0", "#002A7A"]} style={styles.logoutGradient}>
-                  <Text style={styles.logoutText}>Logout</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -328,14 +256,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     position: "relative",
-  },
-  searchInput: {
-    flex: 1,
-    color: "#00328f",
-    fontSize: 14,
-    paddingVertical: 0,
-    paddingLeft: 10,
-    paddingRight: 50, 
   },
   searchPlaceholder: {
     flex: 1,
@@ -467,7 +387,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     justifyContent: "center",
     alignItems: "center",
-    backdropFilter: "blur(4px)",
   },
   quickTipIcon: {
     width: 24,
@@ -494,15 +413,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginVertical: 40,
   },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#e3e8f4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
   emptyTitle: {
     color: "#002A7A",
     fontSize: 18,
@@ -513,69 +423,5 @@ const styles = StyleSheet.create({
     color: "#6b84b7",
     fontSize: 14,
     textAlign: "center",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(4, 17, 43, 0.44)",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  modalCard: {
-    backgroundColor: "#f5f8fd",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-  },
-  modalTitle: {
-    fontSize: 25,
-    fontWeight: "900",
-    color: "#002A7A",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  modalText: {
-    fontSize: 14,
-    color: "#31538f",
-    textAlign: "center",
-    marginBottom: 14,
-  },
-  modalActionRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  cancelWrapper: {
-    flex: 1,
-    borderRadius: 30,
-    padding: 2,
-  },
-  cancelButton: {
-    height: 46,
-    borderRadius: 30,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelText: {
-    color: "#113e94",
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  logoutButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: 30,
-    overflow: "hidden",
-  },
-  logoutGradient: {
-    flex: 1,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoutText: {
-    color: "#ffffff",
-    fontSize: 17,
-    fontWeight: "800",
   },
 });

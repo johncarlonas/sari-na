@@ -122,7 +122,14 @@ export default function HomeSearchScreen() {
 								results.map((item) => (
 								<Pressable
 									key={item.id}
-									onPress={() =>
+									onPress={() => {
+										import('@/services/localUserService').then(m => {
+											m.addNavigationHistory({
+												title: item.title,
+												subtitle: item.subtitle,
+												icon: 'map-marker',
+											});
+										});
 										router.push({
 											pathname: "/user/navigation",
 											params: {
@@ -130,8 +137,8 @@ export default function HomeSearchScreen() {
 												location: item.title,
 												detail: item.subtitle,
 											},
-										})
-									}
+										});
+									}}
 									style={styles.resultCard}
 								>
 									<View style={styles.resultIconWrap}>

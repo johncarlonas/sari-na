@@ -22,6 +22,7 @@ export default function RootLayout() {
     !pathname.startsWith('/user/arrival') &&
     !pathname.startsWith('/user/scan_qr');
 
+
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1 }}>
@@ -35,7 +36,7 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: '#000' },
           }}
         >
-          <Stack.Screen name="login_signup" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="onboarding" options={{ animation: 'fade', animationDuration: 400 }} />
           <Stack.Screen name="user/home" options={{ animation: 'slide_from_left' }} />
           <Stack.Screen
             name="user/map_view"

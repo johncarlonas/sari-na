@@ -11,7 +11,7 @@
       "backgroundColor": "#0b489d",
       "barStyle": "light-content"
     },
-    "newArchEnabled": false,
+
     "ios": {
       "supportsTablet": true
     },

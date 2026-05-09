@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Redirect } from 'expo-router';
-import { supabase } from '@/services/supabase';
+import { hasOnboarded } from '@/services/localUserService';
 
 export default function Index() {
   const [targetPath, setTargetPath] = useState<string | null>(null);
@@ -9,37 +9,24 @@ export default function Index() {
   useEffect(() => {
     let mounted = true;
 
-    const bootstrapRoute = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
+    const bootstrap = async () => {
+      const onboarded = await hasOnboarded();
       if (!mounted) return;
-      setTargetPath(session ? '/user/home' : '/login_signup');
+      setTargetPath(onboarded ? '/user/home' : '/onboarding');
     };
 
-    bootstrapRoute();
+    bootstrap();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setTargetPath(session ? '/user/home' : '/login_signup');
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => { mounted = false; };
   }, []);
 
   if (!targetPath) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' }}>
-        <ActivityIndicator size="large" color="#1565C0" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#002A7A' }}>
+        <ActivityIndicator size="large" color="#ffffff" />
       </View>
     );
   }
 
-  return <Redirect href={targetPath as '/login_signup' | '/user/home'} />;
+  return <Redirect href={targetPath as '/onboarding' | '/user/home'} />;
 }

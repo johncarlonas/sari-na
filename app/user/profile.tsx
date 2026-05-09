@@ -7,18 +7,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getCurrentUserProfile, updateCurrentUserName } from '@/services/emailAuthService';
-import { supabase } from '@/services/supabase';
+import { getDisplayName, setDisplayName, resetAppData } from '@/services/localUserService';
 
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [displayName, setDisplayNameState] = useState('');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
-  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isResetModalVisible, setIsResetModalVisible] = useState(false);
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [isSendingReport, setIsSendingReport] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -27,10 +25,7 @@ export default function Profile() {
   const [reportError, setReportError] = useState('');
   const [reportTitle, setReportTitle] = useState('');
   const [reportDescription, setReportDescription] = useState('');
-  // editing pieces
-  const [tempFirst, setTempFirst] = useState('');
-  const [tempLast, setTempLast] = useState('');
-  const fullName = `${firstName} ${lastName}`.trim();
+  const [tempName, setTempName] = useState('');
 
   // animation values for menu item entrance
   const menuAnims = useRef<Animated.Value[]>([]);
@@ -77,32 +72,29 @@ export default function Profile() {
   };
 
   const handleOpenEditModal = () => {
-    setTempFirst(firstName);
-    setTempLast(lastName);
+    setTempName(displayName);
     setEditError('');
     setIsEditModalVisible(true);
   };
 
   const handleSaveName = async () => {
-    const first = tempFirst.trim();
-    const last = tempLast.trim();
+    const name = tempName.trim();
 
-    if (!first || !last) {
-      setEditError('First name and last name are required');
+    if (!name) {
+      setEditError('Display name is required');
       return;
     }
 
     setIsUpdatingName(true);
     setEditError('');
     try {
-      await updateCurrentUserName(first, last);
-      setFirstName(first);
-      setLastName(last);
+      await setDisplayName(name);
+      setDisplayNameState(name);
       setIsEditModalVisible(false);
       setToastMessage('Profile updated');
       setShowToast(true);
     } catch (error: any) {
-      setEditError(error?.message ?? 'Failed to update profile');
+      setEditError('Failed to update profile');
     } finally {
       setIsUpdatingName(false);
     }
@@ -150,14 +142,14 @@ export default function Profile() {
     setShowToast(true);
   };
 
-  const handleLogout = async () => {
-    setIsLogoutModalVisible(false);
-    await supabase.auth.signOut();
+  const handleResetAppData = async () => {
+    setIsResetModalVisible(false);
+    await resetAppData();
     try {
       (global as any).currentCheckpoint = null;
       (global as any).currentLocation = null;
     } catch {}
-    router.replace('/login_signup');
+    router.replace('/onboarding');
   };
 
   useFocusEffect(
@@ -166,14 +158,12 @@ export default function Profile() {
 
       const loadProfile = async () => {
         try {
-          const profile = await getCurrentUserProfile();
-          if (!mounted || !profile) return;
-          setFirstName(profile.first_name ?? '');
-          setLastName(profile.last_name ?? '');
+          const name = await getDisplayName();
+          if (!mounted) return;
+          setDisplayNameState(name ?? '');
         } catch {
           if (!mounted) return;
-          setFirstName('');
-          setLastName('');
+          setDisplayNameState('');
         }
       };
 
@@ -195,8 +185,8 @@ export default function Profile() {
           return true;
         }
 
-        if (isLogoutModalVisible) {
-          setIsLogoutModalVisible(false);
+        if (isResetModalVisible) {
+          setIsResetModalVisible(false);
           return true;
         }
         router.replace('/user/home');
@@ -207,7 +197,7 @@ export default function Profile() {
         mounted = false;
         sub.remove();
       };
-    }, [isAboutModalVisible, isEditModalVisible, isLogoutModalVisible, isReportModalVisible, router])
+    }, [isAboutModalVisible, isEditModalVisible, isResetModalVisible, isReportModalVisible, router])
   );
 
   return (
@@ -224,24 +214,17 @@ export default function Profile() {
               style={styles.avatarOuter}
             >
               <View style={styles.avatarInner}>
-                <MaskedView
-                  maskElement={<Text style={styles.avatarText}>{getInitials(fullName || 'User')}</Text>}
-                  style={styles.maskedContainer}
-                >
-                  <LinearGradient
-                    colors={["#1565C0", "#002A7A"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.maskedContainer}
-                  />
-                </MaskedView>
+                <Ionicons name="person" size={32} color="#002A7A" />
               </View>
             </LinearGradient>
-            <Text style={styles.userName}>{(fullName || 'USER').toUpperCase()}</Text>
+            <View style={styles.profileTextWrap}>
+              <Text style={styles.userName}>{(displayName || 'USER').toUpperCase()}</Text>
+              <Text style={styles.userRole}>CAMPUS NAVIGATOR</Text>
+            </View>
         </View>
 
           <Pressable onPress={() => setIsAboutModalVisible(true)} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
-            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+            <Animated.View style={[styles.menuCard, {
               opacity: menuAnims.current[0],
               transform: [{
                 translateY: menuAnims.current[0].interpolate({
@@ -261,7 +244,7 @@ export default function Profile() {
           </Pressable>
 
           <Pressable onPress={handleOpenEditModal} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
-            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+            <Animated.View style={[styles.menuCard, {
               opacity: menuAnims.current[1],
               transform: [{
                 translateY: menuAnims.current[1].interpolate({
@@ -275,13 +258,13 @@ export default function Profile() {
               <LinearGradient colors={['#8B5CF6', '#6D28D9']} style={styles.menuIconBox}>
                 <MaterialCommunityIcons name="square-edit-outline" size={24} color="#fff" />
               </LinearGradient>
-              <Text style={styles.menuText}>Edit Profile</Text>
+              <Text style={styles.menuText}>Edit Name</Text>
               <Feather name="chevron-right" size={22} color="#9ab0d6" style={styles.menuChevron} />
             </Animated.View>
           </Pressable>
 
           <Pressable onPress={handleSupportDevs} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
-            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+            <Animated.View style={[styles.menuCard, {
               opacity: menuAnims.current[2],
               transform: [{
                 translateY: menuAnims.current[2].interpolate({
@@ -301,7 +284,7 @@ export default function Profile() {
           </Pressable>
 
           <Pressable onPress={handleOpenReportModal} style={({pressed})=>[{opacity: pressed?0.6:1}] }>
-            <Animated.View style={[styles.menuCard, styles.menuAnim, {
+            <Animated.View style={[styles.menuCard, {
               opacity: menuAnims.current[3],
               transform: [{
                 translateY: menuAnims.current[3].interpolate({
@@ -320,14 +303,12 @@ export default function Profile() {
             </Animated.View>
           </Pressable>
 
-          <Pressable style={[styles.logoutButton, {marginBottom: 10}]} onPress={() => setIsLogoutModalVisible(true)}>
+          <Pressable style={[styles.resetButton, {marginBottom: 10}]} onPress={() => setIsResetModalVisible(true)}>
             <LinearGradient
-                  colors={["#1565C0", "#002A7A"]}
-                  // start={{ x: 0, y: 0 }}
-                  // end={{ x: 1, y: 0.5 }}
-                  style={styles.logoutGradient}
+                  colors={["#D62828", "#9E1B1B"]}
+                  style={styles.resetGradient}
             >
-                   <Text style={styles.logoutText}>Logout</Text>
+                   <Text style={styles.resetText}>Reset App Data</Text>
             </LinearGradient>
           </Pressable>
       </ScrollView>
@@ -340,23 +321,14 @@ export default function Profile() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setIsEditModalVisible(false)}>
           <View style={[styles.modalCard, styles.actionModalCard]} pointerEvents="box-none">
-            <Text style={styles.modalTitleCentered}>Edit Profile</Text>
+            <Text style={styles.modalTitleCentered}>Edit Name</Text>
 
-            <Text style={styles.modalFieldLabel}>First Name</Text>
+            <Text style={styles.modalFieldLabel}>Display Name</Text>
             <TextInput
               style={styles.modalInput}
-              value={tempFirst}
-              onChangeText={setTempFirst}
-              placeholder="Enter first name"
-              placeholderTextColor="#7D95C7"
-            />
-
-            <Text style={styles.modalFieldLabel}>Last Name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={tempLast}
-              onChangeText={setTempLast}
-              placeholder="Enter last name"
+              value={tempName}
+              onChangeText={setTempName}
+              placeholder="Enter your name"
               placeholderTextColor="#7D95C7"
             />
 
@@ -365,13 +337,13 @@ export default function Profile() {
             <View style={styles.editActionRow}>
               <LinearGradient
                 colors={["#1565C0", "#002A7A"]}
-                style={styles.logoutCancelWrapper}
+                style={styles.modalCancelWrapper}
               >
                 <Pressable
-                  style={styles.logoutCancelButton}
+                  style={styles.modalCancelButton}
                   onPress={() => setIsEditModalVisible(false)}
                 >
-                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </Pressable>
               </LinearGradient>
 
@@ -427,13 +399,13 @@ export default function Profile() {
             <View style={styles.editActionRow}>
               <LinearGradient
                 colors={["#1565C0", "#002A7A"]}
-                style={styles.logoutCancelWrapper}
+                style={styles.modalCancelWrapper}
               >
                 <Pressable
-                  style={styles.logoutCancelButton}
+                  style={styles.modalCancelButton}
                   onPress={() => setIsReportModalVisible(false)}
                 >
-                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </Pressable>
               </LinearGradient>
 
@@ -501,35 +473,35 @@ export default function Profile() {
       </Modal>
 
       <Modal
-        visible={isLogoutModalVisible}
+        visible={isResetModalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsLogoutModalVisible(false)}
+        onRequestClose={() => setIsResetModalVisible(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setIsLogoutModalVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsResetModalVisible(false)}>
           <View style={[styles.modalCard, styles.actionModalCard]} pointerEvents="box-none">
-            <Text style={styles.modalTitleCentered}>Logout</Text>
-            <Text style={styles.modalTextCentered}>Are you sure you want to log out?</Text>
+            <Text style={styles.modalTitleCentered}>Reset App Data</Text>
+            <Text style={styles.modalTextCentered}>This will erase your name and history. Are you sure?</Text>
 
-            <View style={styles.logoutActionRow}>
+            <View style={styles.resetActionRow}>
               <LinearGradient
                 colors={["#1565C0", "#002A7A"]}
-                style={styles.logoutCancelWrapper}
+                style={styles.modalCancelWrapper}
               >
                 <Pressable
-                  style={styles.logoutCancelButton}
-                  onPress={() => setIsLogoutModalVisible(false)}
+                  style={styles.modalCancelButton}
+                  onPress={() => setIsResetModalVisible(false)}
                 >
-                  <Text style={styles.logoutCancelText}>Cancel</Text>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
                 </Pressable>
               </LinearGradient>
 
-              <Pressable style={styles.logoutConfirmButton} onPress={handleLogout}>
+              <Pressable style={styles.resetConfirmButton} onPress={handleResetAppData}>
                 <LinearGradient
-                  colors={["#1565C0", "#002A7A"]}
-                  style={styles.logoutConfirmGradient}
+                  colors={["#D62828", "#9E1B1B"]}
+                  style={styles.resetConfirmGradient}
                 >
-                  <Text style={styles.logoutConfirmText}>Logout</Text>
+                  <Text style={styles.resetConfirmText}>Reset</Text>
                 </LinearGradient>
               </Pressable>
             </View>
@@ -561,55 +533,61 @@ const styles = StyleSheet.create({
     backgroundColor: '#edf2f8',
     paddingVertical: 22,
     paddingHorizontal: 20,
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
     marginLeft: -15,
     marginRight: -15,
+    gap: 15,
+  },
+  profileTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  userRole: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6b84b7',
+    marginTop: 2,
+    letterSpacing: 1,
   },
 
   avatarOuter: {
-    width: 100,
-    height: 100,
-    borderRadius: 54,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
   avatarInner: {
-    width: 85,
-    height: 85,
-    borderRadius: 45,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 0,
   },
   maskedContainer: {
-    width: 85,
-    height: 85,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 40,
+    fontSize: 28,
     fontWeight: '700',
     color: '#002A7A',
     textAlign: 'center',
     textAlignVertical: 'center',
-    lineHeight: 85, 
-
+    lineHeight: 60, 
     alignSelf: 'center',
   },
   userName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: '#002A7A',
     letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  menuAnim: {
-
+    textAlign: 'left',
   },
   menuCard: {
     backgroundColor: '#f7f9fd',
@@ -637,42 +615,28 @@ const styles = StyleSheet.create({
   menuChevron: {
     marginLeft: 'auto',
   },
-  logoutButton: {
+  resetButton: {
     marginTop: 15,
     borderRadius: 27,
     height: 52,
-    shadowColor: "#1E88E5",
+    shadowColor: "#D62828",
     shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
     overflow: "hidden",
   },
-  logoutText: {
+  resetText: {
     color: '#ffffff',
     fontSize: 20,
     fontWeight: '800',
   },
-  logoutGradient: {
+  resetGradient: {
     flex: 1,
     borderRadius: 27,
     alignItems: "center",
     justifyContent: "center",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    maxWidth: 400,
-  },
-  /* shared with navigation screen for guide/complete dialogs */
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(4, 17, 43, 0.44)',
@@ -694,26 +658,6 @@ const styles = StyleSheet.create({
   actionModalCard: {
     paddingBottom: 20,
   },
-  modalPrimary: {
-    height: 50,
-    borderRadius: 13,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalPrimaryGradient: {
-    flex: 1,
-    borderRadius: 30,
-    overflow: 'hidden',
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalPrimaryText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
   modalTitleCentered: {
     fontSize: 25,
     fontWeight: '900',
@@ -727,49 +671,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
-  logoutActionRow: {
+  resetActionRow: {
     flexDirection: 'row',
     gap: 10,
   },
-  logoutCancelWrapper: {
+  modalCancelWrapper: {
     flex: 1,
     borderRadius: 30,
     padding: 3,
   },
-  logoutCancelButton: {
+  modalCancelButton: {
     height: 44,
     borderRadius: 30,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutCancelText: {
+  modalCancelText: {
     color: '#113e94',
     fontSize: 17,
     fontWeight: '800',
   },
-  logoutConfirmButton: {
+  resetConfirmButton: {
     flex: 1,
     height: 50,
     borderRadius: 30,
     overflow: 'hidden',
   },
-  logoutConfirmGradient: {
+  resetConfirmGradient: {
     flex: 1,
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutConfirmText: {
+  resetConfirmText: {
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '800',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#002A7A',
-    marginBottom: 16,
   },
   modalInput: {
     height: 50,
@@ -793,42 +731,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 10,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButtonCancel: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  modalButtonTextCancel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  modalButtonSave: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#002A7A',
-    alignItems: 'center',
-  },
-  modalButtonTextSave: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  editErrorText: {
-    color: '#D62828',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 10,
-  },
   editActionRow: {
     flexDirection: 'row',
     gap: 10,
@@ -850,6 +752,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '800',
+  },
+  editErrorText: {
+    color: '#D62828',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 10,
   },
   toastContainer: {
     position: 'absolute',
@@ -876,9 +786,6 @@ const styles = StyleSheet.create({
   },
   aboutCenter: {
     textAlign: 'center',
-  },
-  aboutItalic: {
-    fontStyle: 'italic',
   },
   aboutFooter: {
     textAlign: 'center',
