@@ -1,15 +1,42 @@
-# SARI NA — Smart AI Recognition & Indoor Navigation Assistant
+
+<div align="center">
+
+<h1>SARI NA</h1>
+
+<p><b>Smart AI Recognition & Indoor Navigation Assistant</b></p>
+
+<p>
+  A QR-assisted indoor navigation application designed to help CSPC students navigate buildings, locate rooms, and follow calculated routes when GPS coverage becomes unreliable indoors.
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/REACT_NATIVE-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
+  <img src="https://img.shields.io/badge/EXPO-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
+  <img src="https://img.shields.io/badge/TYPESCRIPT-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/EXPO_ROUTER-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo Router" />
+  <img src="https://img.shields.io/badge/SUPABASE-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
+</p>
+
+<p>
+  <a href="https://github.com/johncarlonas/sari-na">Source Code</a>
+</p>
+
+</div>
+
+---
+
+## Overview
 
 SARI NA is a React Native (Expo) showcase for an indoor navigation experience that helps CSPC students move from one QR checkpoint to another when GPS coverage collapses inside the CCS and Annex buildings.
 
-## ✨ Highlights
+## Highlights
 
-- **On-device QR anchoring** – the `Scan QR` screen relies on `expo-camera` and `react-native-vision-camera` compatible APIs so every scan instantly pins the user's indoor node without the need for Wi-Fi.
-- **Smart pathfinding** – a reusable `Pathfinder` service implements the A* algorithm on top of a JSON node graph (see `constants/mapData.ts`) that describes rooms, hallways, stairs, and portal nodes that bridge buildings.
-- **2D floor visualizer** – the new `Graph` component renders a static indoor map with highlighted routes so students can preview their walk before taking a step.
-- **Cross-building proof** – CCS floor data links to an Annex ground-floor map through "portal" nodes, satisfying the scalability requirement from the project brief.
+- **On-device QR anchoring** - the `Scan QR` screen relies on `expo-camera` and `react-native-vision-camera` compatible APIs so every scan instantly pins the user's indoor node without the need for Wi-Fi.
+- **Smart pathfinding** - a reusable `Pathfinder` service implements the A* algorithm on top of a JSON node graph (see `constants/mapData.ts`) that describes rooms, hallways, stairs, and portal nodes that bridge buildings.
+- **2D floor visualizer** - the new `Graph` component renders a static indoor map with highlighted routes so students can preview their walk before taking a step.
+- **Cross-building proof** - CCS floor data links to an Annex ground-floor map through "portal" nodes, satisfying the scalability requirement from the project brief.
 
-## 🧱 Project Structure
+## Project Structure
 
 ```
 app/
@@ -23,11 +50,11 @@ services/              # Pathfinder, map service helpers
 types/                 # Shared TypeScript types for nodes/floors/buildings
 ```
 
-## 🚶 Routing Data Model
+## Routing Data Model
 
-- **Map Nodes** – `MapNode` objects represent rooms, hallways, stairs, or entrances. Each node keeps indoor pixel coordinates (`x`, `y`), its building ID, floor level, and optional outdoor GPS coordinates.
-- **Edges** – `MapEdge` connections define weighted, bi-directional walkways. Floors also list `interFloorEdges` for stairs or elevators.
-- **Portals** – special entrance nodes like `ccs_f1_portal_annex` and `annex_f1_portal_ccs` link two buildings. Their edge weight is higher to reflect longer walks.
+- **Map Nodes** - `MapNode` objects represent rooms, hallways, stairs, or entrances. Each node keeps indoor pixel coordinates (`x`, `y`), its building ID, floor level, and optional outdoor GPS coordinates.
+- **Edges** - `MapEdge` connections define weighted, bi-directional walkways. Floors also list `interFloorEdges` for stairs or elevators.
+- **Portals** - special entrance nodes like `ccs_f1_portal_annex` and `annex_f1_portal_ccs` link two buildings. Their edge weight is higher to reflect longer walks.
 
 To add a new space:
 
@@ -36,7 +63,7 @@ To add a new space:
 3. Extend `app/data/places.ts` so the destination appears inside search results.
 4. (Optional) Add a QR payload in `constants/qrCheckpoints.ts` to simulate scanning that checkpoint.
 
-## 📱 Simulating a QR Scan
+## Simulating a QR Scan
 
 Use one of these payloads when testing with printed QR codes or by typing into Expo Go's developer QR mock:
 
@@ -49,7 +76,7 @@ Use one of these payloads when testing with printed QR codes or by typing into E
 
 Scanning one of these strings updates the global anchor (`global.currentCheckpoint`, `global.currentNodeId`) so the Navigation screen can compute an accurate indoor path.
 
-## 🗺️ Indoor Graph Preview
+## Indoor Graph Preview
 
 When a user selects a destination with indoor metadata, the Navigation bottom sheet now shows:
 
@@ -57,7 +84,7 @@ When a user selects a destination with indoor metadata, the Navigation bottom sh
 2. Floor chips to toggle between levels that participate in the route.
 3. A static 2D map (built with pure React Native views) that highlights the route, start, and destination nodes.
 
-## 🛠️ Getting Started
+## Getting Started
 
 ```bash
 npm install
@@ -68,7 +95,7 @@ npx expo start
 - Open **Scan QR** and scan a supported payload so your current node is pinned.
 - Navigate back to **Navigation** to see the computed route, indoor visualization, and guidance modals.
 
-## 🧭 Roadmap Ideas
+## Roadmap Ideas
 
 - Integrate the `react-native-vision-camera` based QR scanner with actual image processing once device testing is available.
 - Persist scanned checkpoints per user and sync them to a backend for analytics.
@@ -77,4 +104,4 @@ npx expo start
 
 ---
 
-SARI NA makes the “scan → anchor → navigate” story tangible by pairing QR checkpoints, explicit indoor graphs, and a deterministic routing UI. Customize the graph data and payloads to map the next building in your campus expansion plan. 💡
+SARI NA makes the "scan → anchor → navigate" story tangible by pairing QR checkpoints, explicit indoor graphs, and a deterministic routing UI. Customize the graph data and payloads to map the next building in your campus expansion plan.
