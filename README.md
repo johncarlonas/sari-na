@@ -13,7 +13,6 @@
   <img src="https://img.shields.io/badge/REACT_NATIVE-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React Native" />
   <img src="https://img.shields.io/badge/EXPO-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo" />
   <img src="https://img.shields.io/badge/TYPESCRIPT-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/EXPO_ROUTER-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo Router" />
   <img src="https://img.shields.io/badge/SUPABASE-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
 </p>
 
