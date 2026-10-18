@@ -16,10 +16,6 @@
   <img src="https://img.shields.io/badge/SUPABASE-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
 </p>
 
-<p>
-  <a href="https://github.com/johncarlonas/sari-na">Source Code</a>
-</p>
-
 </div>
 
 ---
